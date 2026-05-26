@@ -297,7 +297,7 @@ def main():
     with c1:
         uploaded = st.file_uploader("", type=["mp4","mov","avi"], label_visibility="collapsed")
     with c2:
-        sport = st.radio("", ["Karting","Biking"], horizontal=True,
+        sport = st.radio("", ["Karting","Biking","Cycling"], horizontal=True,
                          label_visibility="collapsed").lower()
     with c3:
         st.markdown('<div class="analyze-btn">', unsafe_allow_html=True)

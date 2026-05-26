@@ -69,6 +69,34 @@ Rules:
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
 
+CYCLING_PROMPT = """You are an expert road cycling coach watching onboard race footage.
+
+Return ONLY valid JSON — no markdown fences, no explanations — in this exact schema:
+
+{
+  "session_summary": "2-3 sentence overall performance summary",
+  "errors": [
+    {"timestamp": "M:SS", "seconds": 14, "description": "specific technical error description"}
+  ],
+  "best_moments": [
+    {"timestamp": "M:SS", "seconds": 45, "description": "specific description of what was done well"}
+  ],
+  "coaching_analysis": "Full multi-paragraph technical analysis covering pacing strategy, drafting and positioning, cornering technique, and climbing or sprinting efficiency. Be specific and reference timestamps.",
+  "scores": {
+    "pacing": 72,
+    "positioning": 65,
+    "cornering": 78,
+    "consistency": 70
+  },
+  "driver_archetype": "One-line rider style description (e.g. Steady Climber, Aggressive Sprinter)"
+}
+
+Rules:
+- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- scores are integers 0-100
+- seconds must be the numeric value matching the timestamp
+- Be direct, technical, and specific — coaching tone throughout"""
+
 
 def _fix_multiline_strings(text: str) -> str:
     """Escape literal newlines inside JSON string values."""
@@ -130,7 +158,12 @@ def caption() -> dict:
     if video_file.state.name != "ACTIVE":
         raise RuntimeError(f"Gemini file processing failed: {video_file.state.name}")
 
-    prompt = BIKING_PROMPT if sport == "biking" else KARTING_PROMPT
+    if sport == "biking":
+        prompt = BIKING_PROMPT
+    elif sport == "cycling":
+        prompt = CYCLING_PROMPT
+    else:
+        prompt = KARTING_PROMPT
 
     raw_text = None
     for model_id in ("gemini-2.5-flash", "gemini-2.0-flash"):
