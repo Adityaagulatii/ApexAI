@@ -228,72 +228,86 @@ def main():
 
     st.markdown('<hr style="border-color:#22222E;margin:10px 0;">', unsafe_allow_html=True)
 
-    # score cards full width
-    if structured.get("scores"):
-        score_cards(structured["scores"])
-        st.markdown('<div style="margin-bottom:16px;"></div>', unsafe_allow_html=True)
+    left, right = st.columns([11, 9])
 
-    # main panel — tabs full width
-    errs = structured.get("errors", [])
-    moms = structured.get("best_moments", [])
-
-    tab_e, tab_m, tab_c = st.tabs([
-        f"⚠️  Errors ({len(errs)})",
-        f"⚡  Best Moments ({len(moms)})",
-        "📋  Coaching",
-    ])
-
-    with tab_e:
-        st.markdown(
-            '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-            'color:#55555F;margin-bottom:10px;padding-top:12px;">Errors detected in this session</p>',
-            unsafe_allow_html=True)
-        if errs:
-            for i, e in enumerate(errs):
-                event_row(e["timestamp"], e["description"], f"err_{i}")
+    # ── LEFT: plain video + score cards ──────────────────────────────────────
+    with left:
+        if os.path.exists(VIDEO_PATH):
+            with open(VIDEO_PATH, "rb") as vf:
+                st.video(vf.read(), format="video/mp4")
         else:
-            st.markdown('<p style="color:#9090A0;font-size:13px;">No errors detected.</p>', unsafe_allow_html=True)
-
-    with tab_m:
-        st.markdown(
-            '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-            'color:#55555F;margin-bottom:10px;padding-top:12px;">Best moments from this session</p>',
-            unsafe_allow_html=True)
-        if moms:
-            for i, m in enumerate(moms):
-                event_row(m["timestamp"], m["description"], f"mom_{i}")
-        else:
-            st.markdown('<p style="color:#9090A0;font-size:13px;">No highlights detected.</p>', unsafe_allow_html=True)
-
-    with tab_c:
-        summary = structured.get("session_summary", "")
-        if summary:
             st.markdown(
-                f'<div style="background:rgba(0,255,135,0.04);border:1px solid rgba(0,255,135,0.1);'
-                f'border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13px;color:#fff;line-height:1.6;">'
-                f'{summary}</div>', unsafe_allow_html=True)
-
-        ds = structured.get("driver_style")
-        if ds:
-            driver_style_card(ds)
-
-        analysis = structured.get("coaching_analysis", "")
-        if analysis:
-            st.markdown(
-                '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-                'color:#55555F;margin-bottom:6px;">Full Analysis</p>', unsafe_allow_html=True)
-            st.markdown(
-                f'<div style="font-size:13px;color:#fff;line-height:1.7;">{analysis}</div>',
+                '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'
+                'height:300px;display:flex;align-items:center;justify-content:center;'
+                'color:#55555F;font-size:13px;">No video uploaded yet</div>',
                 unsafe_allow_html=True)
 
-        if os.path.exists(REPORT_PATH):
+        if structured.get("scores"):
             st.markdown('<div style="margin-top:14px;"></div>', unsafe_allow_html=True)
-            with open(REPORT_PATH, encoding="utf-8") as f:
-                report_md = f.read()
-            st.download_button("⬇  Download report.md", report_md.encode(),
-                               "pitlane_report.md", "text/markdown")
+            score_cards(structured["scores"])
 
-    ask_section(structured)
+    # ── RIGHT: tabs + ask the engineer ───────────────────────────────────────
+    with right:
+        errs = structured.get("errors", [])
+        moms = structured.get("best_moments", [])
+
+        tab_e, tab_m, tab_c = st.tabs([
+            f"⚠️  Errors ({len(errs)})",
+            f"⚡  Best Moments ({len(moms)})",
+            "📋  Coaching",
+        ])
+
+        with tab_e:
+            st.markdown(
+                '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
+                'color:#55555F;margin-bottom:10px;padding-top:12px;">Errors detected in this session</p>',
+                unsafe_allow_html=True)
+            if errs:
+                for i, e in enumerate(errs):
+                    event_row(e["timestamp"], e["description"], f"err_{i}")
+            else:
+                st.markdown('<p style="color:#9090A0;font-size:13px;">No errors detected.</p>', unsafe_allow_html=True)
+
+        with tab_m:
+            st.markdown(
+                '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
+                'color:#55555F;margin-bottom:10px;padding-top:12px;">Best moments from this session</p>',
+                unsafe_allow_html=True)
+            if moms:
+                for i, m in enumerate(moms):
+                    event_row(m["timestamp"], m["description"], f"mom_{i}")
+            else:
+                st.markdown('<p style="color:#9090A0;font-size:13px;">No highlights detected.</p>', unsafe_allow_html=True)
+
+        with tab_c:
+            summary = structured.get("session_summary", "")
+            if summary:
+                st.markdown(
+                    f'<div style="background:rgba(0,255,135,0.04);border:1px solid rgba(0,255,135,0.1);'
+                    f'border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13px;color:#fff;line-height:1.6;">'
+                    f'{summary}</div>', unsafe_allow_html=True)
+
+            ds = structured.get("driver_style")
+            if ds:
+                driver_style_card(ds)
+
+            analysis = structured.get("coaching_analysis", "")
+            if analysis:
+                st.markdown(
+                    '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
+                    'color:#55555F;margin-bottom:6px;">Full Analysis</p>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div style="font-size:13px;color:#fff;line-height:1.7;">{analysis}</div>',
+                    unsafe_allow_html=True)
+
+            if os.path.exists(REPORT_PATH):
+                st.markdown('<div style="margin-top:14px;"></div>', unsafe_allow_html=True)
+                with open(REPORT_PATH, encoding="utf-8") as f:
+                    report_md = f.read()
+                st.download_button("⬇  Download report.md", report_md.encode(),
+                                   "pitlane_report.md", "text/markdown")
+
+        ask_section(structured)
 
 
 if __name__ == "__main__":
