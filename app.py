@@ -19,7 +19,7 @@ def _structured_path(sport: str) -> str:
 def _report_path(sport: str) -> str:
     return os.path.join(COACHING_OUT, f"{sport}_report.md")
 
-st.set_page_config(page_title="PitLane AI", layout="wide", page_icon="🏎")
+st.set_page_config(page_title="Apex AI", layout="wide", page_icon="🏎")
 
 st.markdown("""
 <style>
@@ -388,7 +388,7 @@ def main():
     st.markdown(
         '<div style="display:flex;align-items:center;gap:12px;padding:4px 0 14px;">'
         '<span style="font-size:22px;font-weight:800;letter-spacing:-.03em;">'
-        'PitLane<span style="color:#00FF87;">AI</span></span>'
+        'Apex<span style="color:#00FF87;">AI</span></span>'
         '<span style="font-size:12px;color:#9090A0;">Vision-only AI race engineer · No sensors · No hardware · Just video</span>'
         '</div>', unsafe_allow_html=True)
 
