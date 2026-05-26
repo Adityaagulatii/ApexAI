@@ -308,7 +308,7 @@ def video_player_with_markers(sport: str, structured: dict) -> None:
 <html><head><style>
 *{{box-sizing:border-box;margin:0;padding:0;}}
 body{{background:#08080C;font-family:Inter,sans-serif;}}
-#vid{{width:100%;display:block;border-radius:10px 10px 0 0;background:#000;max-height:320px;}}
+#vid{{width:100%;display:block;border-radius:10px 10px 0 0;background:#000;max-height:480px;}}
 #bar-wrap{{background:#16161D;border:1px solid #22222E;border-top:none;
            border-radius:0 0 10px 10px;padding:10px 12px 8px;}}
 #track{{position:relative;height:6px;background:#2E2E3E;border-radius:3px;
@@ -379,7 +379,7 @@ track.addEventListener('click',function(e){{
 }});
 </script></body></html>"""
 
-    components.html(html, height=400)
+    components.html(html, height=560)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
