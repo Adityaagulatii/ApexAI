@@ -2,7 +2,8 @@ import os
 import json
 import time
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -48,24 +49,29 @@ def caption() -> str:
     if not api_key:
         raise ValueError("GEMINI_API_KEY not set in environment.")
 
-    genai.configure(api_key=api_key)
+    client = genai.Client(api_key=api_key)
 
     print(f"[caption] Uploading {video_path} to Gemini...")
-    video_file = genai.upload_file(path=video_path, mime_type="video/mp4")
+    video_file = client.files.upload(
+        path=video_path,
+        config=types.UploadFileConfig(mime_type="video/mp4"),
+    )
 
     print("[caption] Waiting for Gemini to process video...")
     while video_file.state.name == "PROCESSING":
         time.sleep(5)
-        video_file = genai.get_file(video_file.name)
+        video_file = client.files.get(name=video_file.name)
 
     if video_file.state.name != "ACTIVE":
         raise RuntimeError(f"Gemini file processing failed: {video_file.state.name}")
 
     prompt = BIKING_PROMPT if sport == "biking" else KARTING_PROMPT
-    model = genai.GenerativeModel("gemini-2.5-flash")
 
     print("[caption] Sending prompt to Gemini 2.5 Flash...")
-    response = model.generate_content([video_file, prompt])
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=[video_file, prompt],
+    )
     analysis = response.text
 
     with open(GEMINI_OUT, "w", encoding="utf-8") as f:

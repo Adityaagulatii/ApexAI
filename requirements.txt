@@ -3,7 +3,7 @@ ffmpeg-python
 opencv-python
 ultralytics
 mediapipe
-google-generativeai
+google-genai
 groq
 python-dotenv
 numpy
