@@ -36,9 +36,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
-- Do not target a specific number — report as many or as few as the footage actually contains
-- Spread your observations across the full duration; do not cluster at the start
+- Scan the ENTIRE video from start to finish — be thorough, not selective
+- Longer footage should yield more observations; flag every technically significant moment you see, not just the most obvious ones
+- Spread observations across the full duration; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -66,9 +66,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
-- Do not target a specific number — report as many or as few as the footage actually contains
-- Spread your observations across the full duration; do not cluster at the start
+- Scan the ENTIRE video from start to finish — be thorough, not selective
+- Longer footage should yield more observations; flag every technically significant moment you see, not just the most obvious ones
+- Spread observations across the full duration; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -96,9 +96,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
-- Do not target a specific number — report as many or as few as the footage actually contains
-- Spread your observations across the full duration; do not cluster at the start
+- Scan the ENTIRE video from start to finish — be thorough, not selective
+- Longer footage should yield more observations; flag every technically significant moment you see, not just the most obvious ones
+- Spread observations across the full duration; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -202,7 +202,7 @@ def caption() -> dict:
         prompt = KARTING_PROMPT
 
     raw_text = None
-    for model_id in ("gemini-2.5-flash", "gemini-2.0-flash"):
+    for model_id in ("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"):
         try:
             print(f"[caption] Sending prompt to {model_id}...")
             response = client.models.generate_content(
