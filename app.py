@@ -46,6 +46,8 @@ html,body,[class*="css"]{font-family:'Inter',-apple-system,sans-serif;background
 
 .send-btn>button{background:#FF3B3B!important;color:#fff!important;border:none!important;font-weight:600!important;border-radius:6px!important;padding:6px 16px!important;font-size:13px!important;}
 .send-btn>button:hover{background:#cc2f2f!important;}
+.ts-btn>button{background:rgba(0,255,135,0.08)!important;border:1px solid rgba(0,255,135,0.2)!important;color:#00FF87!important;border-radius:4px!important;font-size:11px!important;font-weight:700!important;font-family:monospace!important;padding:1px 7px!important;line-height:1.4!important;}
+.ts-btn>button:hover{background:rgba(0,255,135,0.2)!important;border-color:#00FF87!important;}
 
 [data-testid="stFileUploader"]{background:#16161D;border:1px dashed #2E2E3E;border-radius:10px;}
 .stTextInput>div>div>input{background:#16161D!important;border:1px solid #22222E!important;color:#fff!important;border-radius:6px!important;font-size:13px!important;}
@@ -124,14 +126,14 @@ def driver_style_card(ds: dict) -> None:
 
 # ── event rows ────────────────────────────────────────────────────────────────
 
-def event_row(ts: str, desc: str, key: str) -> None:
+def event_row(ts: str, desc: str, key: str, seconds: int = 0) -> None:
     c1, c2 = st.columns([0.14, 0.86])
     with c1:
-        st.markdown(
-            f'<div style="background:rgba(0,255,135,0.08);border:1px solid rgba(0,255,135,0.15);'
-            f'border-radius:5px;padding:3px 8px;font-size:12px;font-weight:700;'
-            f'color:#00FF87;font-family:monospace;text-align:center;">{ts}</div>',
-            unsafe_allow_html=True)
+        st.markdown('<div class="ts-btn">', unsafe_allow_html=True)
+        if st.button(ts, key=f"seek_{key}"):
+            st.session_state["video_seek"] = seconds
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     with c2:
         st.markdown(f'<p style="font-size:13px;color:#fff;margin:2px 0 0;">{desc}</p>',
                     unsafe_allow_html=True)
@@ -198,28 +200,15 @@ def coaching_tab(s: dict) -> None:
     errs = s.get("errors", [])
     if errs:
         _section_label(f"Key Errors — {len(errs)} flagged")
-        for e in errs:
-            st.markdown(
-                f'<div style="margin-bottom:8px;line-height:1.5;">'
-                f'{_ts_pill(e["timestamp"])}'
-                f'<span style="font-size:13px;color:#fff;">{e["description"]}</span>'
-                f'</div>',
-                unsafe_allow_html=True)
+        for i, e in enumerate(errs):
+            event_row(e["timestamp"], e["description"], f"cerr_{i}", e.get("seconds", 0))
 
     # Best moments with timestamps
     moms = s.get("best_moments", [])
     if moms:
         _section_label(f"Best Moments — {len(moms)} highlighted")
-        for m in moms:
-            st.markdown(
-                f'<div style="margin-bottom:8px;line-height:1.5;">'
-                f'<span style="display:inline-block;background:rgba(0,255,135,0.08);'
-                f'border:1px solid rgba(0,255,135,0.2);border-radius:4px;padding:1px 7px;'
-                f'font-size:11px;font-weight:700;color:#00FF87;font-family:monospace;'
-                f'margin-right:6px;">{m["timestamp"]}</span>'
-                f'<span style="font-size:13px;color:#fff;">{m["description"]}</span>'
-                f'</div>',
-                unsafe_allow_html=True)
+        for i, m in enumerate(moms):
+            event_row(m["timestamp"], m["description"], f"cmom_{i}", m.get("seconds", 0))
 
     # Coaching analysis — split into paragraphs, not a wall of text
     analysis = s.get("coaching_analysis", "")
@@ -358,7 +347,8 @@ def main():
         vpath = _video_path(sport)
         if os.path.exists(vpath):
             with open(vpath, "rb") as vf:
-                st.video(vf.read(), format="video/mp4")
+                st.video(vf.read(), format="video/mp4",
+                         start_time=st.session_state.get("video_seek", 0))
         else:
             st.markdown(
                 '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'
@@ -385,7 +375,7 @@ def main():
                 unsafe_allow_html=True)
             if errs:
                 for i, e in enumerate(errs):
-                    event_row(e["timestamp"], e["description"], f"err_{i}")
+                    event_row(e["timestamp"], e["description"], f"err_{i}", e.get("seconds", 0))
             else:
                 st.markdown('<p style="color:#9090A0;font-size:13px;">No errors detected.</p>', unsafe_allow_html=True)
 
@@ -396,7 +386,7 @@ def main():
                 unsafe_allow_html=True)
             if moms:
                 for i, m in enumerate(moms):
-                    event_row(m["timestamp"], m["description"], f"mom_{i}")
+                    event_row(m["timestamp"], m["description"], f"mom_{i}", m.get("seconds", 0))
             else:
                 st.markdown('<p style="color:#9090A0;font-size:13px;">No highlights detected.</p>', unsafe_allow_html=True)
 
