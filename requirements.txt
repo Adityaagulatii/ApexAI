@@ -1,0 +1,9 @@
+streamlit
+ffmpeg-python
+opencv-python
+ultralytics
+mediapipe
+google-generativeai
+groq
+python-dotenv
+numpy

@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+cv/frames/
+cv/video.mp4
+cv/detections.json
+cv/events.json
+cv/output_overlay.mp4
+coaching/output/
+*.pt
+.DS_Store
