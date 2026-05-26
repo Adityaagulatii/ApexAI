@@ -36,7 +36,8 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
+- Cover early, middle, and late sections of the footage; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -64,7 +65,8 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
+- Cover early, middle, and late sections of the footage; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -92,7 +94,8 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
+- Cover early, middle, and late sections of the footage; do not cluster everything at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -122,10 +125,40 @@ def _fix_multiline_strings(text: str) -> str:
     return "".join(result)
 
 
+def _extract_first_json(text: str) -> str:
+    """Return the substring spanning the first top-level JSON object."""
+    start = text.find("{")
+    if start == -1:
+        return text
+    depth = 0
+    in_string = False
+    escaped = False
+    for i, ch in enumerate(text[start:], start):
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\" and in_string:
+            escaped = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if not in_string:
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[start:i + 1]
+    return text[start:]
+
+
 def _parse_json(text: str) -> dict:
-    text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.MULTILINE)
-    text = re.sub(r"```\s*$", "", text.strip(), flags=re.MULTILINE)
+    # strip all markdown fences
+    text = re.sub(r"```(?:json)?", "", text.strip())
     text = _fix_multiline_strings(text.strip())
+    # take only the first JSON object (guards against Gemini duplicating its output)
+    text = _extract_first_json(text)
     return json.loads(text)
 
 
