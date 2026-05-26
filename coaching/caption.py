@@ -12,8 +12,6 @@ load_dotenv()
 CV_DIR = os.path.join(os.path.dirname(__file__), "..", "cv")
 EVENTS_PATH = os.path.join(CV_DIR, "events.json")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
-GEMINI_RAW_OUT = os.path.join(OUTPUT_DIR, "gemini_analysis.txt")
-GEMINI_STRUCTURED_OUT = os.path.join(OUTPUT_DIR, "gemini_structured.json")
 
 KARTING_PROMPT = """You are an expert kart racing coach watching onboard race footage.
 
@@ -150,28 +148,30 @@ def caption() -> dict:
     if raw_text is None:
         raise RuntimeError("All Gemini models failed.")
 
-    with open(GEMINI_RAW_OUT, "w", encoding="utf-8") as f:
+    raw_out = os.path.join(OUTPUT_DIR, f"{sport}_gemini_analysis.txt")
+    structured_out = os.path.join(OUTPUT_DIR, f"{sport}_structured.json")
+
+    with open(raw_out, "w", encoding="utf-8") as f:
         f.write(raw_text)
 
     try:
         structured = _parse_json(raw_text)
     except json.JSONDecodeError:
-        # Fallback: store raw text as analysis
         structured = {
             "session_summary": "",
             "errors": [],
             "best_moments": [],
             "coaching_analysis": raw_text,
-            "scores": {"racing_line": 0, "braking": 0, "throttle": 0, "consistency": 0},
+            "scores": {},
             "driver_archetype": "",
         }
 
     structured["sport"] = sport
 
-    with open(GEMINI_STRUCTURED_OUT, "w", encoding="utf-8") as f:
+    with open(structured_out, "w", encoding="utf-8") as f:
         json.dump(structured, f, indent=2)
 
-    print(f"[caption] Done. Structured data saved to {GEMINI_STRUCTURED_OUT}")
+    print(f"[caption] Done. Structured data saved to {structured_out}")
     return structured
 
 

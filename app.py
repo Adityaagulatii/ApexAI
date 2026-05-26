@@ -8,9 +8,16 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(__file__)
 CV_DIR = os.path.join(BASE_DIR, "cv")
-VIDEO_PATH = os.path.join(CV_DIR, "video.mp4")
-STRUCTURED_PATH = os.path.join(BASE_DIR, "coaching", "output", "gemini_structured.json")
-REPORT_PATH = os.path.join(BASE_DIR, "coaching", "output", "report.md")
+COACHING_OUT = os.path.join(BASE_DIR, "coaching", "output")
+
+def _video_path(sport: str) -> str:
+    return os.path.join(CV_DIR, f"{sport}_video.mp4")
+
+def _structured_path(sport: str) -> str:
+    return os.path.join(COACHING_OUT, f"{sport}_structured.json")
+
+def _report_path(sport: str) -> str:
+    return os.path.join(COACHING_OUT, f"{sport}_report.md")
 
 st.set_page_config(page_title="PitLane AI", layout="wide", page_icon="🏎")
 
@@ -52,19 +59,21 @@ hr{border-color:#22222E;}
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
-def load_structured() -> dict | None:
-    return json.load(open(STRUCTURED_PATH, encoding="utf-8")) if os.path.exists(STRUCTURED_PATH) else None
+def load_structured(sport: str) -> dict | None:
+    p = _structured_path(sport)
+    return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else None
 
-def run_coaching_pipeline(sport: str) -> None:
+def run_coaching_pipeline(sport: str, video_path: str) -> None:
     from coaching.caption import caption
     from coaching.report import generate_report
-    # Write sport into a minimal events.json so caption.py knows the sport
     os.makedirs(CV_DIR, exist_ok=True)
-    events_path = os.path.join(CV_DIR, "events.json")
-    with open(events_path, "w") as f:
-        json.dump({"sport": sport, "video_path": VIDEO_PATH, "fps": 10, "events": []}, f)
+    # Save video to sport-specific path
+    import shutil
+    shutil.copy2(video_path, _video_path(sport))
+    with open(os.path.join(CV_DIR, "events.json"), "w") as f:
+        json.dump({"sport": sport, "video_path": _video_path(sport), "fps": 10, "events": []}, f)
     caption()
-    generate_report()
+    generate_report(sport)
 
 def score_color(v: int) -> str:
     return "#00FF87" if v >= 80 else "#FFD426" if v >= 60 else "#FF3B3B"
@@ -297,11 +306,12 @@ def main():
 
     if go and uploaded:
         os.makedirs(CV_DIR, exist_ok=True)
-        os.makedirs(os.path.join(BASE_DIR, "coaching", "output"), exist_ok=True)
-        open(VIDEO_PATH, "wb").write(uploaded.read())
+        os.makedirs(COACHING_OUT, exist_ok=True)
+        tmp_path = os.path.join(CV_DIR, "upload_tmp.mp4")
+        open(tmp_path, "wb").write(uploaded.read())
         try:
             with st.spinner("Gemini is watching your footage — finding errors and best moments…"):
-                run_coaching_pipeline(sport)
+                run_coaching_pipeline(sport, tmp_path)
             for k in ("eng_answer", "eng_question"):
                 st.session_state.pop(k, None)
             st.success("Analysis complete!")
@@ -310,7 +320,7 @@ def main():
             st.error(f"Pipeline error: {e}")
         return
 
-    structured = load_structured()
+    structured = load_structured(sport)
 
     if not structured:
         st.markdown(
@@ -327,8 +337,9 @@ def main():
 
     # ── LEFT: plain video + score cards ──────────────────────────────────────
     with left:
-        if os.path.exists(VIDEO_PATH):
-            with open(VIDEO_PATH, "rb") as vf:
+        vpath = _video_path(sport)
+        if os.path.exists(vpath):
+            with open(vpath, "rb") as vf:
                 st.video(vf.read(), format="video/mp4")
         else:
             st.markdown(

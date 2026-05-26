@@ -7,8 +7,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
-GEMINI_STRUCTURED_PATH = os.path.join(OUTPUT_DIR, "gemini_structured.json")
-REPORT_OUT = os.path.join(OUTPUT_DIR, "report.md")
 
 DRIVER_STYLE_PROMPT = """You are a motorsport performance analyst. Based on these performance scores and observations, generate a driver style profile.
 
@@ -119,10 +117,23 @@ Answer in 3-5 sentences. Be direct, specific, and technical. Reference timestamp
     return completion.choices[0].message.content.strip()
 
 
-def generate_report() -> str:
+def generate_report(sport: str = None) -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    with open(GEMINI_STRUCTURED_PATH, encoding="utf-8") as f:
+    # Determine sport from file if not passed
+    if sport is None:
+        for s in ("karting", "biking"):
+            p = os.path.join(OUTPUT_DIR, f"{s}_structured.json")
+            if os.path.exists(p):
+                sport = s
+                break
+        else:
+            sport = "karting"
+
+    structured_path = os.path.join(OUTPUT_DIR, f"{sport}_structured.json")
+    report_out = os.path.join(OUTPUT_DIR, f"{sport}_report.md")
+
+    with open(structured_path, encoding="utf-8") as f:
         data = json.load(f)
 
     # Generate driver style if not already present
@@ -131,7 +142,7 @@ def generate_report() -> str:
         try:
             driver_style = generate_driver_style(data)
             data["driver_style"] = driver_style
-            with open(GEMINI_STRUCTURED_PATH, "w", encoding="utf-8") as f:
+            with open(structured_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
         except Exception as e:
             print(f"[report] Driver style generation failed: {e}")
@@ -174,10 +185,10 @@ def generate_report() -> str:
 
     report = "\n".join(lines)
 
-    with open(REPORT_OUT, "w", encoding="utf-8") as f:
+    with open(report_out, "w", encoding="utf-8") as f:
         f.write(report)
 
-    print(f"[report] Done. Report saved to {REPORT_OUT}")
+    print(f"[report] Done. Report saved to {report_out}")
     return report
 
 
