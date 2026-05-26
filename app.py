@@ -126,6 +126,15 @@ def driver_style_card(ds: dict) -> None:
 
 # ── event rows ────────────────────────────────────────────────────────────────
 
+import re as _re
+
+def _highlight_speeds(text: str) -> str:
+    return _re.sub(
+        r'(\d+\s*(?:mph|kph|km/h))',
+        r'<span style="color:#FFD426;font-weight:700;">\1</span>',
+        text, flags=_re.IGNORECASE
+    )
+
 def event_row(ts: str, desc: str, key: str, seconds: int = 0) -> None:
     c1, c2 = st.columns([0.14, 0.86])
     with c1:
@@ -135,7 +144,7 @@ def event_row(ts: str, desc: str, key: str, seconds: int = 0) -> None:
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     with c2:
-        st.markdown(f'<p style="font-size:13px;color:#fff;margin:2px 0 0;">{desc}</p>',
+        st.markdown(f'<p style="font-size:13px;color:#fff;margin:2px 0 0;">{_highlight_speeds(desc)}</p>',
                     unsafe_allow_html=True)
     st.markdown('<hr style="border-color:#22222E;margin:7px 0;">', unsafe_allow_html=True)
 
@@ -218,7 +227,7 @@ def coaching_tab(s: dict) -> None:
         for para in paragraphs:
             st.markdown(
                 f'<p style="font-size:13px;color:#CCCCCC;line-height:1.7;margin-bottom:10px;">'
-                f'{para}</p>',
+                f'{_highlight_speeds(para)}</p>',
                 unsafe_allow_html=True)
 
 
