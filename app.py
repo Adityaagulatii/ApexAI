@@ -250,8 +250,16 @@ def ask_section(structured: dict) -> None:
     q_cols = st.columns(2)
     for i, q in enumerate(QUICK_QUESTIONS):
         if q_cols[i % 2].button(q, key=f"qq_{i}", use_container_width=True):
-            st.session_state["eng_question"] = q
+            st.session_state.pop("eng_input", None)  # force text input to reinitialize
             st.session_state.pop("eng_answer", None)
+            # send immediately without waiting for button click
+            with st.spinner("Analysing…"):
+                try:
+                    from coaching.report import ask_engineer
+                    st.session_state["eng_answer"] = ask_engineer(q, structured)
+                    st.session_state["eng_question"] = q
+                except Exception as e:
+                    st.session_state["eng_answer"] = f"Error: {e}"
             st.rerun()
 
     question = st.text_input("", placeholder="Ask anything about this session…",
