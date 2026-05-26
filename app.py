@@ -36,6 +36,9 @@ html,body,[class*="css"]{font-family:'Inter',-apple-system,sans-serif;background
 
 .stButton>button{background:transparent;border:1px solid #22222E;color:#9090A0;border-radius:6px;font-size:12px;font-weight:600;padding:4px 10px;transition:all .15s;}
 .stButton>button:hover{border-color:#00FF87;color:#00FF87;background:rgba(0,255,135,0.05);}
+.sport-btn>button{background:#16161D!important;border:1px solid #22222E!important;color:#9090A0!important;border-radius:8px!important;font-size:12px!important;font-weight:600!important;padding:6px 14px!important;width:100%!important;}
+.sport-btn>button:hover{border-color:#00FF87!important;color:#00FF87!important;background:rgba(0,255,135,0.05)!important;}
+.sport-btn-active>button{background:rgba(0,255,135,0.1)!important;border:1px solid #00FF87!important;color:#00FF87!important;border-radius:8px!important;font-size:12px!important;font-weight:700!important;padding:6px 14px!important;width:100%!important;}
 
 .analyze-btn>button{background:#00FF87!important;color:#000!important;border:none!important;font-weight:700!important;font-size:14px!important;border-radius:8px!important;padding:10px 24px!important;}
 .analyze-btn>button:hover{background:#00CC6A!important;box-shadow:0 0 20px rgba(0,255,135,0.3)!important;}
@@ -292,13 +295,28 @@ def main():
         '<span style="font-size:12px;color:#9090A0;">Vision-only AI race engineer · No sensors · No hardware · Just video</span>'
         '</div>', unsafe_allow_html=True)
 
+    # sport selector (persists across reruns)
+    if "sport" not in st.session_state:
+        st.session_state["sport"] = "karting"
+
+    s1, s2, s3 = st.columns([1, 1, 1])
+    for col, label in zip([s1, s2, s3], ["Karting", "Biking", "Cycling"]):
+        is_active = st.session_state["sport"] == label.lower()
+        css_class = "sport-btn-active" if is_active else "sport-btn"
+        col.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
+        if col.button(label, key=f"sport_{label}", use_container_width=True):
+            st.session_state["sport"] = label.lower()
+            st.session_state.pop("eng_answer", None)
+            st.session_state.pop("eng_question", None)
+            st.rerun()
+        col.markdown('</div>', unsafe_allow_html=True)
+
+    sport = st.session_state["sport"]
+
     # controls
-    c1, c2, c3 = st.columns([2.5, 0.8, 0.55])
+    c1, c3 = st.columns([3.5, 0.55])
     with c1:
         uploaded = st.file_uploader("", type=["mp4","mov","avi"], label_visibility="collapsed")
-    with c2:
-        sport = st.radio("", ["Karting","Biking","Cycling"], horizontal=True,
-                         label_visibility="collapsed").lower()
     with c3:
         st.markdown('<div class="analyze-btn">', unsafe_allow_html=True)
         go = st.button("▶  Analyze", disabled=uploaded is None, use_container_width=True)
