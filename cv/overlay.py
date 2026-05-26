@@ -1,5 +1,7 @@
 import os
 import json
+import subprocess
+import tempfile
 from collections import defaultdict
 
 import cv2
@@ -10,6 +12,7 @@ DETECTIONS_PATH = os.path.join(CV_DIR, "detections.json")
 EVENTS_PATH = os.path.join(CV_DIR, "events.json")
 VIDEO_IN = os.path.join(CV_DIR, "video.mp4")
 VIDEO_OUT = os.path.join(CV_DIR, "output_overlay.mp4")
+VIDEO_TMP = os.path.join(CV_DIR, "output_overlay_tmp.mp4")
 
 TRAIL_LEN = 15
 GREEN = (0, 255, 0)
@@ -48,7 +51,7 @@ def render() -> None:
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(VIDEO_OUT, fourcc, fps, (w, h))
+    writer = cv2.VideoWriter(VIDEO_TMP, fourcc, fps, (w, h))
 
     # Track centroid history per track id
     trail: dict[int, list] = defaultdict(list)
@@ -147,6 +150,14 @@ def render() -> None:
 
     cap.release()
     writer.release()
+
+    print("[overlay] Re-encoding to H.264 for browser compatibility...")
+    subprocess.run([
+        "ffmpeg", "-y", "-i", VIDEO_TMP,
+        "-vcodec", "libx264", "-crf", "23", "-preset", "fast",
+        "-pix_fmt", "yuv420p", VIDEO_OUT,
+    ], capture_output=True, check=True)
+    os.remove(VIDEO_TMP)
     print(f"[overlay] Done. Output: {VIDEO_OUT}")
 
 

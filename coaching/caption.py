@@ -1,6 +1,7 @@
 import os
 import json
 import time
+import re
 
 from google import genai
 from google.genai import types
@@ -11,39 +12,105 @@ load_dotenv()
 CV_DIR = os.path.join(os.path.dirname(__file__), "..", "cv")
 EVENTS_PATH = os.path.join(CV_DIR, "events.json")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
-GEMINI_OUT = os.path.join(OUTPUT_DIR, "gemini_analysis.txt")
+GEMINI_RAW_OUT = os.path.join(OUTPUT_DIR, "gemini_analysis.txt")
+GEMINI_STRUCTURED_OUT = os.path.join(OUTPUT_DIR, "gemini_structured.json")
 
-KARTING_PROMPT = """You are an expert kart racing coach and race engineer. Watch this race footage carefully.
+KARTING_PROMPT = """You are an expert kart racing coach watching onboard race footage.
 
-Analyze the following and be specific:
-1. Braking points: are they early, correct, or late into each corner?
-2. Racing line: is the driver hitting apexes or running wide?
-3. Throttle application: is it smooth and progressive or abrupt?
-4. Corner exit: is the driver maximizing exit speed?
-5. Any specific corners where significant time is being lost?
+Return ONLY valid JSON — no markdown fences, no explanations — in this exact schema:
 
-Be direct, technical, and specific. Coaching tone. Reference timestamps where possible."""
+{
+  "session_summary": "2-3 sentence overall performance summary",
+  "errors": [
+    {"timestamp": "M:SS", "seconds": 14, "description": "specific technical error description"}
+  ],
+  "best_moments": [
+    {"timestamp": "M:SS", "seconds": 45, "description": "specific description of what was done well"}
+  ],
+  "coaching_analysis": "Full multi-paragraph technical analysis covering braking points, racing line, throttle application, and corner exits. Be specific and reference timestamps.",
+  "scores": {
+    "racing_line": 72,
+    "braking": 65,
+    "throttle": 78,
+    "consistency": 70
+  },
+  "driver_archetype": "One-line driver style description (e.g. Aggressive entry, passive exit)"
+}
 
-BIKING_PROMPT = """You are an expert motorcycle racing coach. Watch this race footage carefully.
+Rules:
+- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- scores are integers 0-100
+- seconds must be the numeric value matching the timestamp
+- Be direct, technical, and specific — coaching tone throughout"""
 
-Analyze the following and be specific:
-1. Lean angle: is the rider committing fully or being conservative?
-2. Body position: tucked, upright, or hanging off correctly?
-3. Braking points: late, early, or correct?
-4. Corner entry vs exit posture: any inconsistencies?
-5. Safety flags: any moments where knee clearance looks dangerously low?
+BIKING_PROMPT = """You are an expert motorcycle racing coach watching onboard race footage.
 
-Be direct, technical, and specific. Coaching tone. Reference timestamps where possible."""
+Return ONLY valid JSON — no markdown fences, no explanations — in this exact schema:
+
+{
+  "session_summary": "2-3 sentence overall performance summary",
+  "errors": [
+    {"timestamp": "M:SS", "seconds": 14, "description": "specific technical error description"}
+  ],
+  "best_moments": [
+    {"timestamp": "M:SS", "seconds": 45, "description": "specific description of what was done well"}
+  ],
+  "coaching_analysis": "Full multi-paragraph technical analysis covering lean angle, body position, braking points, corner entry and exit. Be specific and reference timestamps.",
+  "scores": {
+    "lean_commitment": 72,
+    "braking": 65,
+    "body_position": 78,
+    "consistency": 70
+  },
+  "driver_archetype": "One-line rider style description"
+}
+
+Rules:
+- Find at minimum 4 errors and 4 best moments with exact timestamps from the footage
+- scores are integers 0-100
+- seconds must be the numeric value matching the timestamp
+- Be direct, technical, and specific — coaching tone throughout"""
 
 
-def caption() -> str:
+def _fix_multiline_strings(text: str) -> str:
+    """Escape literal newlines inside JSON string values."""
+    result = []
+    in_string = False
+    escaped = False
+    for ch in text:
+        if escaped:
+            result.append(ch)
+            escaped = False
+        elif ch == "\\":
+            result.append(ch)
+            escaped = True
+        elif ch == '"':
+            result.append(ch)
+            in_string = not in_string
+        elif ch == "\n" and in_string:
+            result.append("\\n")
+        elif ch == "\r" and in_string:
+            pass
+        else:
+            result.append(ch)
+    return "".join(result)
+
+
+def _parse_json(text: str) -> dict:
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip(), flags=re.MULTILINE)
+    text = re.sub(r"```\s*$", "", text.strip(), flags=re.MULTILINE)
+    text = _fix_multiline_strings(text.strip())
+    return json.loads(text)
+
+
+def caption() -> dict:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     with open(EVENTS_PATH) as f:
-        events_data = json.load(f)
+        events_meta = json.load(f)
 
-    sport = events_data.get("sport", "karting")
-    video_path = events_data.get("video_path", os.path.join(CV_DIR, "video.mp4"))
+    sport = events_meta.get("sport", "karting")
+    video_path = events_meta.get("video_path", os.path.join(CV_DIR, "video.mp4"))
 
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -53,7 +120,7 @@ def caption() -> str:
 
     print(f"[caption] Uploading {video_path} to Gemini...")
     video_file = client.files.upload(
-        path=video_path,
+        file=video_path,
         config=types.UploadFileConfig(mime_type="video/mp4"),
     )
 
@@ -67,21 +134,47 @@ def caption() -> str:
 
     prompt = BIKING_PROMPT if sport == "biking" else KARTING_PROMPT
 
-    print("[caption] Sending prompt to Gemini 2.5 Flash...")
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[video_file, prompt],
-    )
-    analysis = response.text
+    raw_text = None
+    for model_id in ("gemini-2.5-flash", "gemini-2.0-flash"):
+        try:
+            print(f"[caption] Sending prompt to {model_id}...")
+            response = client.models.generate_content(
+                model=model_id,
+                contents=[video_file, prompt],
+            )
+            raw_text = response.text
+            break
+        except Exception as e:
+            print(f"[caption] {model_id} failed ({e}), trying next model...")
 
-    with open(GEMINI_OUT, "w", encoding="utf-8") as f:
-        f.write(analysis)
+    if raw_text is None:
+        raise RuntimeError("All Gemini models failed.")
 
-    print(f"[caption] Done. Analysis saved to {GEMINI_OUT}")
-    return analysis
+    with open(GEMINI_RAW_OUT, "w", encoding="utf-8") as f:
+        f.write(raw_text)
+
+    try:
+        structured = _parse_json(raw_text)
+    except json.JSONDecodeError:
+        # Fallback: store raw text as analysis
+        structured = {
+            "session_summary": "",
+            "errors": [],
+            "best_moments": [],
+            "coaching_analysis": raw_text,
+            "scores": {"racing_line": 0, "braking": 0, "throttle": 0, "consistency": 0},
+            "driver_archetype": "",
+        }
+
+    structured["sport"] = sport
+
+    with open(GEMINI_STRUCTURED_OUT, "w", encoding="utf-8") as f:
+        json.dump(structured, f, indent=2)
+
+    print(f"[caption] Done. Structured data saved to {GEMINI_STRUCTURED_OUT}")
+    return structured
 
 
 if __name__ == "__main__":
     result = caption()
-    print("\n--- Gemini Analysis ---")
-    print(result)
+    print(json.dumps(result, indent=2))

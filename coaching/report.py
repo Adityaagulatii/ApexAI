@@ -6,94 +6,173 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-CV_DIR = os.path.join(os.path.dirname(__file__), "..", "cv")
-EVENTS_PATH = os.path.join(CV_DIR, "events.json")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
-GEMINI_ANALYSIS_PATH = os.path.join(OUTPUT_DIR, "gemini_analysis.txt")
+GEMINI_STRUCTURED_PATH = os.path.join(OUTPUT_DIR, "gemini_structured.json")
 REPORT_OUT = os.path.join(OUTPUT_DIR, "report.md")
 
-REPORT_PROMPT = """You are a professional race engineer writing a post-session coaching report.
+DRIVER_STYLE_PROMPT = """You are a motorsport performance analyst. Based on these performance scores and observations, generate a driver style profile.
 
-Here is the computer vision analysis of key events detected in the footage:
-{cv_events_summary}
+Scores (0-100):
+{scores}
 
-Here is the semantic video analysis from an AI coach:
-{gemini_analysis}
+Key observations:
+{observations}
 
-Write a structured coaching report with these exact sections:
-## Session Summary
-2-3 sentences on overall performance.
+Return ONLY valid JSON — no markdown, no explanation:
+{{
+  "archetype": "One punchy driver archetype label (e.g. Momentum Driver, Aggressive Braker, Smooth Operator)",
+  "tags": [
+    {{"label": "Short label 2-3 words", "emoji": "single emoji", "sentiment": "positive"}},
+    {{"label": "Short label 2-3 words", "emoji": "single emoji", "sentiment": "negative"}},
+    {{"label": "Short label 2-3 words", "emoji": "single emoji", "sentiment": "positive"}},
+    {{"label": "Short label 2-3 words", "emoji": "single emoji", "sentiment": "neutral"}}
+  ]
+}}
 
-## Top 3 Issues to Fix
-Numbered list. Each issue: what it is, why it costs time/safety, exact correction.
-
-## What You Did Well
-2-3 specific positives.
-
-## Priority for Next Session
-One single focus point.
-
-Be direct, specific, and actionable. No filler."""
+Rules:
+- Exactly 4 tags
+- sentiment must be "positive", "negative", or "neutral"
+- Tags should reflect the actual driving data
+- Be direct and specific"""
 
 
-def _summarize_events(events: list, sport: str) -> str:
-    if not events:
-        return "No significant CV events detected."
+def _groq_client() -> Groq:
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not set in environment.")
+    return Groq(api_key=api_key)
 
-    counts: dict[str, int] = {}
-    for ev in events:
-        counts[ev["type"]] = counts.get(ev["type"], 0) + 1
 
-    lines = [f"Sport: {sport}", f"Total flagged events: {len(events)}"]
-    for etype, count in counts.items():
-        lines.append(f"  - {etype}: {count} occurrence(s)")
+def generate_driver_style(data: dict) -> dict:
+    scores = data.get("scores", {})
+    errors = data.get("errors", [])
+    moments = data.get("best_moments", [])
+    analysis = data.get("coaching_analysis", "")
 
-    lines.append("")
-    lines.append("Event details:")
-    for ev in events[:15]:
-        lean = f", lean={ev['lean_angle']}°" if ev.get("lean_angle") else ""
-        lines.append(
-            f"  t={ev['timestamp']}s  [{ev['type']}]  speed_delta={ev['speed_delta']}{lean}"
-        )
-    if len(events) > 15:
-        lines.append(f"  ... and {len(events) - 15} more events")
+    observations = []
+    for e in errors[:4]:
+        observations.append(f"Error: {e['description']}")
+    for m in moments[:4]:
+        observations.append(f"Strength: {m['description']}")
+    if analysis:
+        observations.append(analysis[:400])
 
-    return "\n".join(lines)
+    scores_str = "\n".join(f"  {k.replace('_', ' ').title()}: {v}/100" for k, v in scores.items())
+    obs_str = "\n".join(f"- {o}" for o in observations)
+
+    prompt = DRIVER_STYLE_PROMPT.format(scores=scores_str, observations=obs_str)
+
+    client = _groq_client()
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.4,
+        max_tokens=300,
+    )
+
+    raw = completion.choices[0].message.content.strip()
+    # strip markdown fences if present
+    import re
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
+    raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE)
+
+    return json.loads(raw.strip())
+
+
+def ask_engineer(question: str, structured: dict) -> str:
+    errors = structured.get("errors", [])
+    moments = structured.get("best_moments", [])
+    analysis = structured.get("coaching_analysis", "")
+    scores = structured.get("scores", {})
+    sport = structured.get("sport", "karting")
+
+    context_lines = [
+        f"Sport: {sport}",
+        f"Performance scores: {json.dumps(scores)}",
+        "",
+        "Errors detected:",
+    ]
+    for e in errors:
+        context_lines.append(f"  {e['timestamp']} — {e['description']}")
+    context_lines.append("")
+    context_lines.append("Best moments:")
+    for m in moments:
+        context_lines.append(f"  {m['timestamp']} — {m['description']}")
+    context_lines += ["", "Full coaching analysis:", analysis]
+
+    prompt = f"""You are an AI race engineer. Answer the driver's question based on the video analysis below.
+
+Video Analysis:
+{chr(10).join(context_lines)}
+
+Driver's question: {question}
+
+Answer in 3-5 sentences. Be direct, specific, and technical. Reference timestamps from the analysis where relevant."""
+
+    client = _groq_client()
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.3,
+        max_tokens=400,
+    )
+    return completion.choices[0].message.content.strip()
 
 
 def generate_report() -> str:
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    with open(EVENTS_PATH) as f:
-        events_data = json.load(f)
+    with open(GEMINI_STRUCTURED_PATH, encoding="utf-8") as f:
+        data = json.load(f)
 
-    with open(GEMINI_ANALYSIS_PATH, encoding="utf-8") as f:
-        gemini_analysis = f.read()
+    # Generate driver style if not already present
+    if not data.get("driver_style"):
+        print("[report] Generating driver style profile via Groq...")
+        try:
+            driver_style = generate_driver_style(data)
+            data["driver_style"] = driver_style
+            with open(GEMINI_STRUCTURED_PATH, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+        except Exception as e:
+            print(f"[report] Driver style generation failed: {e}")
 
-    sport = events_data.get("sport", "karting")
-    events = events_data.get("events", [])
-    cv_summary = _summarize_events(events, sport)
+    lines = []
 
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("GROQ_API_KEY not set in environment.")
+    summary = data.get("session_summary", "")
+    if summary:
+        lines += ["## Session Summary", summary, ""]
 
-    client = Groq(api_key=api_key)
+    errors = data.get("errors", [])
+    if errors:
+        lines += ["## Errors"]
+        for e in errors:
+            lines.append(f"**{e['timestamp']}** — {e['description']}")
+            lines.append("")
 
-    prompt = REPORT_PROMPT.format(
-        cv_events_summary=cv_summary,
-        gemini_analysis=gemini_analysis,
-    )
+    moments = data.get("best_moments", [])
+    if moments:
+        lines += ["## Best Moments"]
+        for m in moments:
+            lines.append(f"**{m['timestamp']}** — {m['description']}")
+            lines.append("")
 
-    print("[report] Calling Groq LLaMA 70B...")
-    completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=1500,
-    )
+    analysis = data.get("coaching_analysis", "")
+    if analysis:
+        lines += ["## Coaching Analysis", analysis, ""]
 
-    report = completion.choices[0].message.content
+    ds = data.get("driver_style", {})
+    if ds:
+        lines += ["## Driver Style", f"_{ds.get('archetype', '')}_", ""]
+
+    scores = data.get("scores", {})
+    if scores:
+        lines += ["## Performance Scores"]
+        for metric, val in scores.items():
+            label = metric.replace("_", " ").title()
+            lines.append(f"- **{label}:** {val}/100")
+        lines.append("")
+
+    report = "\n".join(lines)
 
     with open(REPORT_OUT, "w", encoding="utf-8") as f:
         f.write(report)
@@ -103,6 +182,4 @@ def generate_report() -> str:
 
 
 if __name__ == "__main__":
-    result = generate_report()
-    print("\n--- Coaching Report ---")
-    print(result)
+    print(generate_report())
