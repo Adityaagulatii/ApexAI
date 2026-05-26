@@ -126,6 +126,101 @@ def event_row(ts: str, desc: str, key: str) -> None:
     st.markdown('<hr style="border-color:#22222E;margin:7px 0;">', unsafe_allow_html=True)
 
 
+# ── coaching tab ─────────────────────────────────────────────────────────────
+
+def _grade(v: int) -> tuple[str, str]:
+    if v >= 90: return "A+", "#00FF87"
+    if v >= 80: return "A",  "#00FF87"
+    if v >= 70: return "B",  "#00FF87"
+    if v >= 60: return "C",  "#FFD426"
+    if v >= 50: return "D",  "#FF3B3B"
+    return "F", "#FF3B3B"
+
+def _section_label(text: str) -> None:
+    st.markdown(
+        f'<p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;'
+        f'color:#55555F;margin:14px 0 6px;">{text}</p>',
+        unsafe_allow_html=True)
+
+def _ts_pill(ts: str) -> str:
+    return (f'<span style="display:inline-block;background:rgba(0,255,135,0.08);'
+            f'border:1px solid rgba(0,255,135,0.2);border-radius:4px;padding:1px 7px;'
+            f'font-size:11px;font-weight:700;color:#00FF87;font-family:monospace;'
+            f'margin-right:6px;">{ts}</span>')
+
+def coaching_tab(s: dict) -> None:
+    # Session summary
+    summary = s.get("session_summary", "")
+    if summary:
+        st.markdown(
+            f'<div style="background:rgba(0,255,135,0.04);border:1px solid rgba(0,255,135,0.1);'
+            f'border-radius:10px;padding:12px 16px;margin:10px 0 4px;font-size:13px;'
+            f'color:#fff;line-height:1.6;">{summary}</div>',
+            unsafe_allow_html=True)
+
+    # Driver style
+    ds = s.get("driver_style")
+    if ds:
+        driver_style_card(ds)
+
+    # Performance grades
+    scores = s.get("scores", {})
+    if scores:
+        _section_label("Performance Grades")
+        grade_html = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px;">'
+        for k, v in scores.items():
+            letter, color = _grade(v)
+            label = k.replace("_", " ").title()
+            grade_html += (
+                f'<div style="background:#16161D;border:1px solid #22222E;border-radius:8px;'
+                f'padding:10px 14px;min-width:90px;text-align:center;">'
+                f'<div style="font-size:22px;font-weight:800;color:{color};">{letter}</div>'
+                f'<div style="font-size:10px;font-weight:600;text-transform:uppercase;'
+                f'letter-spacing:.06em;color:#9090A0;margin-top:2px;">{label}</div>'
+                f'<div style="font-size:11px;color:#55555F;margin-top:1px;">{v}/100</div>'
+                f'</div>')
+        grade_html += '</div>'
+        st.markdown(grade_html, unsafe_allow_html=True)
+
+    # Key errors with timestamps
+    errs = s.get("errors", [])
+    if errs:
+        _section_label(f"Key Errors — {len(errs)} flagged")
+        for e in errs:
+            st.markdown(
+                f'<div style="margin-bottom:8px;line-height:1.5;">'
+                f'{_ts_pill(e["timestamp"])}'
+                f'<span style="font-size:13px;color:#fff;">{e["description"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True)
+
+    # Best moments with timestamps
+    moms = s.get("best_moments", [])
+    if moms:
+        _section_label(f"Best Moments — {len(moms)} highlighted")
+        for m in moms:
+            st.markdown(
+                f'<div style="margin-bottom:8px;line-height:1.5;">'
+                f'<span style="display:inline-block;background:rgba(0,255,135,0.08);'
+                f'border:1px solid rgba(0,255,135,0.2);border-radius:4px;padding:1px 7px;'
+                f'font-size:11px;font-weight:700;color:#00FF87;font-family:monospace;'
+                f'margin-right:6px;">{m["timestamp"]}</span>'
+                f'<span style="font-size:13px;color:#fff;">{m["description"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True)
+
+    # Coaching analysis — split into paragraphs, not a wall of text
+    analysis = s.get("coaching_analysis", "")
+    if analysis:
+        _section_label("Coach's Analysis")
+        paragraphs = [p.strip() for p in analysis.split("\n") if p.strip()]
+        for para in paragraphs:
+            st.markdown(
+                f'<p style="font-size:13px;color:#CCCCCC;line-height:1.7;margin-bottom:10px;">'
+                f'{para}</p>',
+                unsafe_allow_html=True)
+
+
 # ── ask the engineer ──────────────────────────────────────────────────────────
 
 QUICK_QUESTIONS = [
@@ -277,32 +372,7 @@ def main():
                 st.markdown('<p style="color:#9090A0;font-size:13px;">No highlights detected.</p>', unsafe_allow_html=True)
 
         with tab_c:
-            summary = structured.get("session_summary", "")
-            if summary:
-                st.markdown(
-                    f'<div style="background:rgba(0,255,135,0.04);border:1px solid rgba(0,255,135,0.1);'
-                    f'border-radius:10px;padding:12px 16px;margin:12px 0;font-size:13px;color:#fff;line-height:1.6;">'
-                    f'{summary}</div>', unsafe_allow_html=True)
-
-            ds = structured.get("driver_style")
-            if ds:
-                driver_style_card(ds)
-
-            analysis = structured.get("coaching_analysis", "")
-            if analysis:
-                st.markdown(
-                    '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-                    'color:#55555F;margin-bottom:6px;">Full Analysis</p>', unsafe_allow_html=True)
-                st.markdown(
-                    f'<div style="font-size:13px;color:#fff;line-height:1.7;">{analysis}</div>',
-                    unsafe_allow_html=True)
-
-            if os.path.exists(REPORT_PATH):
-                st.markdown('<div style="margin-top:14px;"></div>', unsafe_allow_html=True)
-                with open(REPORT_PATH, encoding="utf-8") as f:
-                    report_md = f.read()
-                st.download_button("⬇  Download report.md", report_md.encode(),
-                                   "pitlane_report.md", "text/markdown")
+            coaching_tab(structured)
 
         ask_section(structured)
 
