@@ -276,51 +276,110 @@ def ask_section(structured: dict) -> None:
 
 # ── video player with timeline markers ───────────────────────────────────────
 
+@st.cache_data
+def _load_video_b64(sport: str) -> str:
+    import base64
+    with open(_video_path(sport), "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
 def video_player_with_markers(sport: str, structured: dict) -> None:
     import json as _json
+    import streamlit.components.v1 as components
 
-    vpath = _video_path(sport)
     errors  = structured.get("errors", [])
     moments = structured.get("best_moments", [])
 
-    # Video player
-    with open(vpath, "rb") as vf:
-        st.video(vf.read(), format="video/mp4",
-                 start_time=st.session_state.get("video_seek", 0))
-
-    # Compute duration estimate from last timestamp
     all_seconds = [e.get("seconds", 0) for e in errors] + [m.get("seconds", 0) for m in moments]
     duration = max(all_seconds) + 15 if all_seconds else 300
 
-    # Build marker dots HTML
-    dots_html = ""
+    markers = []
     for e in errors:
-        pct = min(e.get("seconds", 0) / duration * 100, 99)
-        desc = e.get("description", "")[:80].replace('"', '&quot;')
-        dots_html += (f'<div title="{desc}" style="position:absolute;left:{pct:.1f}%;'
-                      f'top:50%;transform:translate(-50%,-50%);width:10px;height:10px;'
-                      f'border-radius:50%;background:#FF3B3B;'
-                      f'box-shadow:0 0 5px rgba(255,59,59,.7);cursor:default;z-index:2;"></div>')
+        markers.append({"s": e.get("seconds", 0), "t": "error",
+                        "d": e.get("description", "")[:90].replace("'", "\\'")})
     for m in moments:
-        pct = min(m.get("seconds", 0) / duration * 100, 99)
-        desc = m.get("description", "")[:80].replace('"', '&quot;')
-        dots_html += (f'<div title="{desc}" style="position:absolute;left:{pct:.1f}%;'
-                      f'top:50%;transform:translate(-50%,-50%);width:10px;height:10px;'
-                      f'border-radius:50%;background:#00FF87;'
-                      f'box-shadow:0 0 5px rgba(0,255,135,.6);cursor:default;z-index:2;"></div>')
+        markers.append({"s": m.get("seconds", 0), "t": "moment",
+                        "d": m.get("description", "")[:90].replace("'", "\\'")})
 
-    st.markdown(
-        f'<div style="background:#16161D;border:1px solid #22222E;border-radius:0 0 8px 8px;'
-        f'padding:10px 12px 8px;margin-top:-8px;">'
-        f'<div style="position:relative;height:4px;background:#2E2E3E;border-radius:2px;margin-bottom:8px;">'
-        f'{dots_html}</div>'
-        f'<div style="display:flex;gap:14px;">'
-        f'<span style="font-size:10px;color:#9090A0;display:flex;align-items:center;gap:5px;">'
-        f'<span style="width:8px;height:8px;border-radius:50%;background:#FF3B3B;display:inline-block;"></span>Errors</span>'
-        f'<span style="font-size:10px;color:#9090A0;display:flex;align-items:center;gap:5px;">'
-        f'<span style="width:8px;height:8px;border-radius:50%;background:#00FF87;display:inline-block;"></span>Best Moments</span>'
-        f'</div></div>',
-        unsafe_allow_html=True)
+    markers_json = _json.dumps(markers)
+    b64 = _load_video_b64(sport)
+
+    html = f"""<!DOCTYPE html>
+<html><head><style>
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{background:#08080C;font-family:Inter,sans-serif;}}
+#vid{{width:100%;display:block;border-radius:10px 10px 0 0;background:#000;max-height:320px;}}
+#bar-wrap{{background:#16161D;border:1px solid #22222E;border-top:none;
+           border-radius:0 0 10px 10px;padding:10px 12px 8px;}}
+#track{{position:relative;height:6px;background:#2E2E3E;border-radius:3px;
+        margin-bottom:8px;cursor:pointer;}}
+#prog{{position:absolute;left:0;top:0;height:100%;background:#00FF87;
+       border-radius:3px;width:0%;pointer-events:none;}}
+.mk{{position:absolute;top:50%;transform:translate(-50%,-50%);
+     width:12px;height:12px;border-radius:50%;cursor:pointer;z-index:3;
+     transition:transform .15s,box-shadow .15s;}}
+.mk:hover{{transform:translate(-50%,-50%) scale(1.7);}}
+.mk.e{{background:#FF3B3B;box-shadow:0 0 5px rgba(255,59,59,.7);}}
+.mk.m{{background:#00FF87;box-shadow:0 0 5px rgba(0,255,135,.6);}}
+#tip{{position:fixed;background:#1A1A24;border:1px solid #333;border-radius:6px;
+      padding:6px 10px;font-size:11px;color:#fff;max-width:200px;line-height:1.4;
+      pointer-events:none;display:none;z-index:99;}}
+#legend{{display:flex;gap:14px;}}
+.leg{{display:flex;align-items:center;gap:5px;font-size:10px;color:#9090A0;}}
+.dot{{width:8px;height:8px;border-radius:50%;display:inline-block;}}
+</style></head><body>
+<video id="vid" src="data:video/mp4;base64,{b64}" controls></video>
+<div id="bar-wrap">
+  <div id="track"><div id="prog"></div></div>
+  <div id="legend">
+    <div class="leg"><span class="dot" style="background:#FF3B3B"></span>Errors</div>
+    <div class="leg"><span class="dot" style="background:#00FF87"></span>Best Moments</div>
+  </div>
+</div>
+<div id="tip"></div>
+<script>
+const vid=document.getElementById('vid');
+const track=document.getElementById('track');
+const prog=document.getElementById('prog');
+const tip=document.getElementById('tip');
+const markers={markers_json};
+const dur={duration};
+
+markers.forEach(function(m){{
+  const dot=document.createElement('div');
+  dot.className='mk '+(m.t==='error'?'e':'m');
+  dot.style.left=(m.s/dur*100).toFixed(1)+'%';
+  dot.addEventListener('click',function(e){{
+    e.stopPropagation();
+    vid.currentTime=m.s;
+    vid.play();
+  }});
+  dot.addEventListener('mouseenter',function(e){{
+    tip.textContent=m.d;
+    tip.style.display='block';
+    tip.style.left=(e.clientX+10)+'px';
+    tip.style.top=(e.clientY-36)+'px';
+  }});
+  dot.addEventListener('mousemove',function(e){{
+    tip.style.left=(e.clientX+10)+'px';
+    tip.style.top=(e.clientY-36)+'px';
+  }});
+  dot.addEventListener('mouseleave',function(){{tip.style.display='none';}});
+  track.appendChild(dot);
+}});
+
+vid.addEventListener('timeupdate',function(){{
+  prog.style.width=(vid.currentTime/(vid.duration||1)*100)+'%';
+}});
+
+track.addEventListener('click',function(e){{
+  const r=track.getBoundingClientRect();
+  vid.currentTime=((e.clientX-r.left)/r.width)*(vid.duration||0);
+  vid.play();
+}});
+</script></body></html>"""
+
+    components.html(html, height=400)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
