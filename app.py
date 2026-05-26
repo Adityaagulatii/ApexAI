@@ -292,7 +292,6 @@ def video_player_with_markers(sport: str, structured: dict) -> None:
                         "d": m.get("description", "")[:80]})
 
     markers_json = _json.dumps(markers)
-    video_url = f"app/static/{sport}_video.mp4"
 
     html = f"""
 <style>
@@ -318,7 +317,7 @@ def video_player_with_markers(sport: str, structured: dict) -> None:
   .leg-dot{{width:8px;height:8px;border-radius:50%;}}
 </style>
 <div id="wrap">
-  <video id="vid" src="{video_url}" controls></video>
+  <video id="vid" controls></video>
   <div id="tl-outer">
     <div id="tl-track">
       <div id="tl-fill"></div>
@@ -333,6 +332,7 @@ def video_player_with_markers(sport: str, structured: dict) -> None:
 <div id="tooltip"></div>
 <script>
 const vid = document.getElementById('vid');
+vid.src = window.location.origin + '/app/static/{sport}_video.mp4';
 const track = document.getElementById('tl-track');
 const fill  = document.getElementById('tl-fill');
 const head  = document.getElementById('tl-head');
