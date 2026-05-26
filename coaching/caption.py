@@ -36,8 +36,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
-- Cover early, middle, and late sections of the footage; do not cluster everything at the start
+- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
+- Do not target a specific number — report as many or as few as the footage actually contains
+- Spread your observations across the full duration; do not cluster at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -65,8 +66,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
-- Cover early, middle, and late sections of the footage; do not cluster everything at the start
+- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
+- Do not target a specific number — report as many or as few as the footage actually contains
+- Spread your observations across the full duration; do not cluster at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
@@ -94,8 +96,9 @@ Return ONLY valid JSON — no markdown fences, no explanations — in this exact
 }
 
 Rules:
-- Scan the ENTIRE video and find ALL notable errors and best moments — aim for 8-12 of each, not just 4
-- Cover early, middle, and late sections of the footage; do not cluster everything at the start
+- Scan the ENTIRE video from start to finish and flag every genuine error and best moment you observe
+- Do not target a specific number — report as many or as few as the footage actually contains
+- Spread your observations across the full duration; do not cluster at the start
 - scores are integers 0-100
 - seconds must be the numeric value matching the timestamp
 - Be direct, technical, and specific — coaching tone throughout"""
