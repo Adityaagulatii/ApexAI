@@ -135,10 +135,47 @@ def _highlight_speeds(text: str) -> str:
         text, flags=_re.IGNORECASE
     )
 
-def event_row(ts: str, desc: str, key: str, seconds: int = 0) -> None:
+# Topic taxonomy per sport — ordered by priority; first keyword match wins
+_SPORT_TOPICS = {
+    "karting": [
+        ("Braking",        ["brak", "decelerat", "late brake", "early brake"]),
+        ("Racing Line",    ["racing line", "line", "apex", "wide", "entry", "exit", "trajectory", "arc", "curb"]),
+        ("Throttle",       ["throttle", "accelerat", "drive", "power", "understeer", "oversteer"]),
+        ("Corner Technique", ["corner", "turn", "chicane", "hairpin", "sweep", "complex"]),
+    ],
+    "biking": [
+        ("Braking",        ["brak", "decelerat", "front wheel"]),
+        ("Lean & Cornering", ["lean", "corner", "turn", "chicane", "apex", "sweep", "s-bend", "hairpin"]),
+        ("Body Position",  ["body", "position", "stand", "upright", "shoulder", "posture", "agility"]),
+        ("Racing Line",    ["line", "wide", "entry", "exit", "trajectory", "arc", "curb"]),
+        ("Throttle",       ["throttle", "accelerat", "drive", "power"]),
+    ],
+    "cycling": [
+        ("Braking",        ["brak", "decelerat"]),
+        ("Cornering",      ["corner", "turn", "lean", "apex", "line", "arc", "entry", "exit", "hairpin"]),
+        ("Speed & Pacing", ["speed", "mph", "kph", "pace", "momentum", "accelerat"]),
+        ("Drafting",       ["draft", "wheel", "gap", "proximity", "position", "aerodynamic", "tuck", "follow"]),
+    ],
+}
+
+def _classify_topic(desc: str, sport: str) -> str:
+    low = desc.lower()
+    for topic, keywords in _SPORT_TOPICS.get(sport, _SPORT_TOPICS["karting"]):
+        if any(kw in low for kw in keywords):
+            return topic
+    return "Technique"
+
+def event_row(ts: str, desc: str, key: str, seconds: int = 0, ev_type: str = "moment") -> None:
+    pill_bg    = "rgba(255,59,59,0.08)"   if ev_type == "error" else "rgba(0,255,135,0.08)"
+    pill_bdr   = "rgba(255,59,59,0.2)"    if ev_type == "error" else "rgba(0,255,135,0.2)"
+    pill_color = "#FF3B3B"                if ev_type == "error" else "#00FF87"
     c1, c2 = st.columns([0.14, 0.86])
     with c1:
-        st.markdown('<div class="ts-btn">', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="background:{pill_bg};border:1px solid {pill_bdr};border-radius:4px;'
+            f'padding:1px 7px;font-size:11px;font-weight:700;color:{pill_color};'
+            f'font-family:monospace;text-align:center;cursor:pointer;">',
+            unsafe_allow_html=True)
         if st.button(ts, key=f"seek_{key}"):
             st.session_state["video_seek"] = seconds
             st.rerun()
@@ -210,14 +247,14 @@ def coaching_tab(s: dict) -> None:
     if errs:
         _section_label(f"Key Errors — {len(errs)} flagged")
         for i, e in enumerate(errs):
-            event_row(e["timestamp"], e["description"], f"cerr_{i}", e.get("seconds", 0))
+            event_row(e["timestamp"], e["description"], f"cerr_{i}", e.get("seconds", 0), "error")
 
     # Best moments with timestamps
     moms = s.get("best_moments", [])
     if moms:
         _section_label(f"Best Moments — {len(moms)} highlighted")
         for i, m in enumerate(moms):
-            event_row(m["timestamp"], m["description"], f"cmom_{i}", m.get("seconds", 0))
+            event_row(m["timestamp"], m["description"], f"cmom_{i}", m.get("seconds", 0), "moment")
 
     # Coaching analysis — split into paragraphs, not a wall of text
     analysis = s.get("coaching_analysis", "")
@@ -446,40 +483,48 @@ def main():
                 unsafe_allow_html=True)
 
 
-    # ── RIGHT: tabs + ask the engineer ───────────────────────────────────────
+    # ── RIGHT: topic tabs + coaching + ask the engineer ──────────────────────
     with right:
         errs = structured.get("errors", [])
         moms = structured.get("best_moments", [])
 
-        tab_e, tab_m, tab_c = st.tabs([
-            f"⚠️  Errors ({len(errs)})",
-            f"⚡  Best Moments ({len(moms)})",
-            "📋  Coaching",
-        ])
+        # Classify every event by topic
+        all_events = []
+        for e in errs:
+            all_events.append({**e, "_type": "error",  "_topic": _classify_topic(e["description"], sport)})
+        for m in moms:
+            all_events.append({**m, "_type": "moment", "_topic": _classify_topic(m["description"], sport)})
 
-        with tab_e:
-            st.markdown(
-                '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-                'color:#55555F;margin-bottom:10px;padding-top:12px;">Errors detected in this session</p>',
-                unsafe_allow_html=True)
-            if errs:
-                for i, e in enumerate(errs):
-                    event_row(e["timestamp"], e["description"], f"err_{i}", e.get("seconds", 0))
-            else:
-                st.markdown('<p style="color:#9090A0;font-size:13px;">No errors detected.</p>', unsafe_allow_html=True)
+        # Get ordered topics (preserve taxonomy order, only include ones that have events)
+        topic_order = [t for t, _ in _SPORT_TOPICS.get(sport, _SPORT_TOPICS["karting"])] + ["Technique"]
+        seen_topics = []
+        for t in topic_order:
+            if t not in seen_topics and any(e["_topic"] == t for e in all_events):
+                seen_topics.append(t)
 
-        with tab_m:
-            st.markdown(
-                '<p style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;'
-                'color:#55555F;margin-bottom:10px;padding-top:12px;">Best moments from this session</p>',
-                unsafe_allow_html=True)
-            if moms:
-                for i, m in enumerate(moms):
-                    event_row(m["timestamp"], m["description"], f"mom_{i}", m.get("seconds", 0))
-            else:
-                st.markdown('<p style="color:#9090A0;font-size:13px;">No highlights detected.</p>', unsafe_allow_html=True)
+        tab_labels = seen_topics + ["📋 Coaching"]
+        tabs = st.tabs(tab_labels)
 
-        with tab_c:
+        for tab, topic in zip(tabs[:-1], seen_topics):
+            with tab:
+                topic_events = sorted(
+                    [e for e in all_events if e["_topic"] == topic],
+                    key=lambda x: x.get("seconds", 0)
+                )
+                err_count = sum(1 for e in topic_events if e["_type"] == "error")
+                mom_count = sum(1 for e in topic_events if e["_type"] == "moment")
+                st.markdown(
+                    f'<div style="display:flex;gap:10px;padding:10px 0 8px;">'
+                    f'<span style="font-size:11px;color:#FF3B3B;font-weight:600;">'
+                    f'● {err_count} errors</span>'
+                    f'<span style="font-size:11px;color:#00FF87;font-weight:600;">'
+                    f'● {mom_count} strengths</span></div>',
+                    unsafe_allow_html=True)
+                for i, ev in enumerate(topic_events):
+                    event_row(ev["timestamp"], ev["description"],
+                              f"{topic}_{i}", ev.get("seconds", 0), ev["_type"])
+
+        with tabs[-1]:
             coaching_tab(structured)
 
         ask_section(structured)
