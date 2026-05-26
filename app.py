@@ -242,9 +242,6 @@ def main():
                 'color:#55555F;font-size:13px;">No video uploaded yet</div>',
                 unsafe_allow_html=True)
 
-        if structured.get("scores"):
-            st.markdown('<div style="margin-top:14px;"></div>', unsafe_allow_html=True)
-            score_cards(structured["scores"])
 
     # ── RIGHT: tabs + ask the engineer ───────────────────────────────────────
     with right:
