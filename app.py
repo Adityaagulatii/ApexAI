@@ -278,110 +278,49 @@ def ask_section(structured: dict) -> None:
 
 def video_player_with_markers(sport: str, structured: dict) -> None:
     import json as _json
-    import streamlit.components.v1 as components
 
+    vpath = _video_path(sport)
     errors  = structured.get("errors", [])
     moments = structured.get("best_moments", [])
 
-    markers = []
+    # Video player
+    with open(vpath, "rb") as vf:
+        st.video(vf.read(), format="video/mp4",
+                 start_time=st.session_state.get("video_seek", 0))
+
+    # Compute duration estimate from last timestamp
+    all_seconds = [e.get("seconds", 0) for e in errors] + [m.get("seconds", 0) for m in moments]
+    duration = max(all_seconds) + 15 if all_seconds else 300
+
+    # Build marker dots HTML
+    dots_html = ""
     for e in errors:
-        markers.append({"s": e.get("seconds", 0), "t": "error",
-                        "d": e.get("description", "")[:80]})
+        pct = min(e.get("seconds", 0) / duration * 100, 99)
+        desc = e.get("description", "")[:80].replace('"', '&quot;')
+        dots_html += (f'<div title="{desc}" style="position:absolute;left:{pct:.1f}%;'
+                      f'top:50%;transform:translate(-50%,-50%);width:10px;height:10px;'
+                      f'border-radius:50%;background:#FF3B3B;'
+                      f'box-shadow:0 0 5px rgba(255,59,59,.7);cursor:default;z-index:2;"></div>')
     for m in moments:
-        markers.append({"s": m.get("seconds", 0), "t": "moment",
-                        "d": m.get("description", "")[:80]})
+        pct = min(m.get("seconds", 0) / duration * 100, 99)
+        desc = m.get("description", "")[:80].replace('"', '&quot;')
+        dots_html += (f'<div title="{desc}" style="position:absolute;left:{pct:.1f}%;'
+                      f'top:50%;transform:translate(-50%,-50%);width:10px;height:10px;'
+                      f'border-radius:50%;background:#00FF87;'
+                      f'box-shadow:0 0 5px rgba(0,255,135,.6);cursor:default;z-index:2;"></div>')
 
-    markers_json = _json.dumps(markers)
-
-    html = f"""
-<style>
-  body{{margin:0;background:#08080C;}}
-  #wrap{{position:relative;width:100%;font-family:Inter,sans-serif;}}
-  #vid{{width:100%;border-radius:10px 10px 0 0;display:block;background:#000;max-height:340px;}}
-  #tl-outer{{background:#16161D;border:1px solid #22222E;border-top:none;
-             border-radius:0 0 10px 10px;padding:10px 12px 8px;position:relative;}}
-  #tl-track{{position:relative;height:4px;background:#2E2E3E;border-radius:2px;margin:0 0 6px;cursor:pointer;}}
-  #tl-fill{{position:absolute;left:0;top:0;height:100%;background:#00FF87;border-radius:2px;width:0%;transition:width .1s linear;}}
-  #tl-head{{position:absolute;top:-4px;width:12px;height:12px;background:#00FF87;border-radius:50%;
-            transform:translateX(-50%);left:0%;transition:left .1s linear;pointer-events:none;}}
-  .mk{{position:absolute;top:50%;transform:translate(-50%,-50%);
-       width:10px;height:10px;border-radius:50%;cursor:pointer;z-index:2;transition:transform .15s;}}
-  .mk:hover{{transform:translate(-50%,-50%) scale(1.6);}}
-  .mk.error{{background:#FF3B3B;box-shadow:0 0 6px rgba(255,59,59,.6);}}
-  .mk.moment{{background:#00FF87;box-shadow:0 0 6px rgba(0,255,135,.5);}}
-  #tooltip{{position:fixed;background:#1A1A24;border:1px solid #2E2E3E;border-radius:6px;
-            padding:6px 10px;font-size:11px;color:#fff;max-width:220px;line-height:1.4;
-            pointer-events:none;display:none;z-index:9999;}}
-  #tl-legend{{display:flex;gap:14px;}}
-  .leg{{display:flex;align-items:center;gap:5px;font-size:10px;color:#9090A0;}}
-  .leg-dot{{width:8px;height:8px;border-radius:50%;}}
-</style>
-<div id="wrap">
-  <video id="vid" controls></video>
-  <div id="tl-outer">
-    <div id="tl-track">
-      <div id="tl-fill"></div>
-      <div id="tl-head"></div>
-    </div>
-    <div id="tl-legend">
-      <div class="leg"><div class="leg-dot" style="background:#FF3B3B;"></div>Errors</div>
-      <div class="leg"><div class="leg-dot" style="background:#00FF87;"></div>Best Moments</div>
-    </div>
-  </div>
-</div>
-<div id="tooltip"></div>
-<script>
-const vid = document.getElementById('vid');
-vid.src = window.location.origin + '/app/static/{sport}_video.mp4';
-const track = document.getElementById('tl-track');
-const fill  = document.getElementById('tl-fill');
-const head  = document.getElementById('tl-head');
-const tip   = document.getElementById('tooltip');
-const markers = {markers_json};
-
-function pct(s){{ return (s / (vid.duration||1)) * 100; }}
-
-function buildMarkers(){{
-  markers.forEach(function(m){{
-    const dot = document.createElement('div');
-    dot.className = 'mk ' + (m.t==='error'?'error':'moment');
-    dot.style.left = pct(m.s) + '%';
-    dot.addEventListener('click', function(e){{
-      e.stopPropagation();
-      vid.currentTime = m.s;
-      vid.play();
-    }});
-    dot.addEventListener('mouseenter', function(e){{
-      tip.textContent = m.d;
-      tip.style.display = 'block';
-      tip.style.left = (e.clientX + 12) + 'px';
-      tip.style.top  = (e.clientY - 30) + 'px';
-    }});
-    dot.addEventListener('mousemove', function(e){{
-      tip.style.left = (e.clientX + 12) + 'px';
-      tip.style.top  = (e.clientY - 30) + 'px';
-    }});
-    dot.addEventListener('mouseleave', function(){{ tip.style.display='none'; }});
-    track.appendChild(dot);
-  }});
-}}
-
-vid.addEventListener('loadedmetadata', buildMarkers);
-vid.addEventListener('timeupdate', function(){{
-  const p = (vid.currentTime / (vid.duration||1)) * 100;
-  fill.style.width = p + '%';
-  head.style.left  = p + '%';
-}});
-
-track.addEventListener('click', function(e){{
-  const rect = track.getBoundingClientRect();
-  const p = (e.clientX - rect.left) / rect.width;
-  vid.currentTime = p * (vid.duration||0);
-  vid.play();
-}});
-</script>
-"""
-    components.html(html, height=420)
+    st.markdown(
+        f'<div style="background:#16161D;border:1px solid #22222E;border-radius:0 0 8px 8px;'
+        f'padding:10px 12px 8px;margin-top:-8px;">'
+        f'<div style="position:relative;height:4px;background:#2E2E3E;border-radius:2px;margin-bottom:8px;">'
+        f'{dots_html}</div>'
+        f'<div style="display:flex;gap:14px;">'
+        f'<span style="font-size:10px;color:#9090A0;display:flex;align-items:center;gap:5px;">'
+        f'<span style="width:8px;height:8px;border-radius:50%;background:#FF3B3B;display:inline-block;"></span>Errors</span>'
+        f'<span style="font-size:10px;color:#9090A0;display:flex;align-items:center;gap:5px;">'
+        f'<span style="width:8px;height:8px;border-radius:50%;background:#00FF87;display:inline-block;"></span>Best Moments</span>'
+        f'</div></div>',
+        unsafe_allow_html=True)
 
 
 # ── main ──────────────────────────────────────────────────────────────────────
