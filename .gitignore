@@ -9,4 +9,5 @@ cv/events.json
 cv/output_overlay.mp4
 coaching/output/
 *.pt
+!kart_clips/
 .DS_Store
