@@ -351,41 +351,7 @@ def main():
 
     sport = st.session_state["sport"]
 
-    # controls
-    c1, c3 = st.columns([3.5, 0.55])
-    with c1:
-        uploaded = st.file_uploader("", type=["mp4","mov","avi"], label_visibility="collapsed")
-    with c3:
-        st.markdown('<div class="analyze-btn">', unsafe_allow_html=True)
-        go = st.button("▶  Analyze", disabled=uploaded is None, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    if go and uploaded:
-        os.makedirs(CV_DIR, exist_ok=True)
-        os.makedirs(COACHING_OUT, exist_ok=True)
-        tmp_path = os.path.join(CV_DIR, "upload_tmp.mp4")
-        open(tmp_path, "wb").write(uploaded.read())
-        try:
-            with st.spinner("Gemini is watching your footage — finding errors and best moments…"):
-                run_coaching_pipeline(sport, tmp_path)
-            for k in ("eng_answer", "eng_question"):
-                st.session_state.pop(k, None)
-            st.success("Analysis complete!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Pipeline error: {e}")
-        return
-
     structured = load_structured(sport)
-
-    if not structured:
-        st.markdown(
-            '<div style="margin-top:80px;text-align:center;">'
-            '<div style="font-size:48px;margin-bottom:14px;">🏎</div>'
-            '<div style="font-size:15px;font-weight:600;color:#9090A0;">'
-            'Upload a race video and click Analyze.</div></div>',
-            unsafe_allow_html=True)
-        return
 
     st.markdown('<hr style="border-color:#22222E;margin:10px 0;">', unsafe_allow_html=True)
 
