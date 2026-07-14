@@ -489,23 +489,8 @@ def main():
         '<span style="font-size:12px;color:#9090A0;">Vision-only AI race engineer · No sensors · No hardware · Just video</span>'
         '</div>', unsafe_allow_html=True)
 
-    # sport selector (persists across reruns)
-    if "sport" not in st.session_state:
-        st.session_state["sport"] = "karting"
-
-    s1, s2, s3 = st.columns([1, 1, 1])
-    for col, label in zip([s1, s2, s3], ["Karting", "Biking", "Cycling"]):
-        is_active = st.session_state["sport"] == label.lower()
-        css_class = "sport-btn-active" if is_active else "sport-btn"
-        col.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
-        if col.button(label, key=f"sport_{label}", use_container_width=True):
-            st.session_state["sport"] = label.lower()
-            st.session_state.pop("eng_answer", None)
-            st.session_state.pop("eng_question", None)
-            st.rerun()
-        col.markdown('</div>', unsafe_allow_html=True)
-
-    sport = st.session_state["sport"]
+    st.session_state["sport"] = "karting"
+    sport = "karting"
 
     structured = load_structured(sport)
 
