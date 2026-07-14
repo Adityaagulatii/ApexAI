@@ -1,12 +1,42 @@
 import os
 import json
+import re
 
-from groq import Groq
+import requests
 from dotenv import load_dotenv
 
 load_dotenv()
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_TEXT_MODEL = "llama3.2:latest"
+
+
+def _ollama(prompt: str, timeout: int = 60) -> str:
+    payload = {"model": OLLAMA_TEXT_MODEL, "prompt": prompt,
+               "stream": False, "options": {"temperature": 0.3}}
+    r = requests.post(OLLAMA_URL, json=payload, timeout=timeout)
+    r.raise_for_status()
+    text = r.json()["response"].strip()
+    if "</think>" in text:
+        text = text[text.rfind("</think>") + len("</think>"):].strip()
+    return text
+
+
+def _ollama_available() -> bool:
+    try:
+        return requests.get("http://localhost:11434/api/tags", timeout=3).status_code == 200
+    except Exception:
+        return False
+
+
+def _groq_client():
+    from groq import Groq
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        raise ValueError("GROQ_API_KEY not set")
+    return Groq(api_key=api_key)
 
 DRIVER_STYLE_PROMPT = """You are a motorsport performance analyst. Based on these performance scores and observations, generate a driver style profile.
 
@@ -34,13 +64,6 @@ Rules:
 - Be direct and specific"""
 
 
-def _groq_client() -> Groq:
-    api_key = os.environ.get("GROQ_API_KEY")
-    if not api_key:
-        raise ValueError("GROQ_API_KEY not set in environment.")
-    return Groq(api_key=api_key)
-
-
 def generate_driver_style(data: dict) -> dict:
     scores = data.get("scores", {})
     errors = data.get("errors", [])
@@ -60,21 +83,31 @@ def generate_driver_style(data: dict) -> dict:
 
     prompt = DRIVER_STYLE_PROMPT.format(scores=scores_str, observations=obs_str)
 
-    client = _groq_client()
-    completion = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-        max_tokens=300,
-    )
+    raw = None
+    if _ollama_available():
+        try:
+            raw = _ollama(prompt)
+        except Exception as e:
+            print(f"[report] Ollama driver style failed: {e}")
 
-    raw = completion.choices[0].message.content.strip()
-    # strip markdown fences if present
-    import re
+    if raw is None:
+        # fallback to Groq
+        client = _groq_client()
+        completion = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4, max_tokens=300,
+        )
+        raw = completion.choices[0].message.content.strip()
+
     raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
     raw = re.sub(r"```\s*$", "", raw, flags=re.MULTILINE)
-
-    return json.loads(raw.strip())
+    # strip qwen3 <think> blocks
+    if "</think>" in raw:
+        raw = raw[raw.rfind("</think>") + len("</think>"):].strip()
+    start = raw.find("{")
+    end = raw.rfind("}") + 1
+    return json.loads(raw[start:end] if start >= 0 and end > start else raw.strip())
 
 
 def ask_engineer(question: str, structured: dict) -> str:
@@ -107,12 +140,18 @@ Driver's question: {question}
 
 Answer in 3-5 sentences. Be direct, specific, and technical. Reference timestamps from the analysis where relevant."""
 
+    if _ollama_available():
+        try:
+            return _ollama(prompt)
+        except Exception as e:
+            print(f"[report] Ollama ask_engineer failed: {e}")
+
+    # fallback to Groq
     client = _groq_client()
     completion = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.3,
-        max_tokens=400,
+        temperature=0.3, max_tokens=400,
     )
     return completion.choices[0].message.content.strip()
 

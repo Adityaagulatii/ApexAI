@@ -69,15 +69,29 @@ def load_structured(sport: str) -> dict | None:
     return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else None
 
 def run_coaching_pipeline(sport: str, video_path: str) -> None:
-    from coaching.caption import caption
-    from coaching.report import generate_report
-    os.makedirs(CV_DIR, exist_ok=True)
-    # Save video to sport-specific path
     import shutil
+    from cv.ingest import ingest
+    from cv.detect import detect
+    from cv.flow import analyze
+    from cv.racing_line import analyze as analyze_racing_line
+    from cv.overlay import render
+    from coaching.local_caption import caption_local
+    from coaching.report import generate_report
+
+    os.makedirs(CV_DIR, exist_ok=True)
+
+    # Copy to sport-specific slot
     shutil.copy2(video_path, _video_path(sport))
-    with open(os.path.join(CV_DIR, "events.json"), "w") as f:
-        json.dump({"sport": sport, "video_path": _video_path(sport), "fps": 10, "events": []}, f)
-    caption()
+
+    # Full local CV pipeline
+    ingest(_video_path(sport))
+    detect(sport)
+    analyze(sport)
+    analyze_racing_line(sport)
+    render(sport=sport)
+
+    # Local Ollama coaching (LLaVA + qwen3:4b)
+    caption_local(sport)
     generate_report(sport)
 
 def score_color(v: int) -> str:
@@ -330,6 +344,15 @@ def ask_section(structured: dict) -> None:
 
 # ── video player with timeline markers ───────────────────────────────────────
 
+def _overlay_path(sport: str) -> str:
+    p = os.path.join(CV_DIR, f"{sport}_overlay.mp4")
+    if os.path.exists(p):
+        return p
+    # fallback to the generic output_overlay.mp4
+    fallback = os.path.join(CV_DIR, "output_overlay.mp4")
+    return fallback if os.path.exists(fallback) else ""
+
+
 @st.cache_data
 def _load_video_b64(sport: str) -> str:
     import base64
@@ -337,7 +360,17 @@ def _load_video_b64(sport: str) -> str:
         return base64.b64encode(f.read()).decode()
 
 
-def video_player_with_markers(sport: str, structured: dict) -> None:
+@st.cache_data
+def _load_overlay_b64(sport: str) -> str:
+    import base64
+    path = _overlay_path(sport)
+    if not path:
+        return ""
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+
+def video_player_with_markers(sport: str, structured: dict, show_overlay: bool = False) -> None:
     import json as _json
     import streamlit.components.v1 as components
 
@@ -356,7 +389,11 @@ def video_player_with_markers(sport: str, structured: dict) -> None:
                         "d": m.get("description", "")[:90].replace("'", "\\'")})
 
     markers_json = _json.dumps(markers)
-    b64 = _load_video_b64(sport)
+
+    if show_overlay:
+        b64 = _load_overlay_b64(sport) or _load_video_b64(sport)
+    else:
+        b64 = _load_video_b64(sport)
 
     html = f"""<!DOCTYPE html>
 <html><head><style>
@@ -388,6 +425,7 @@ body{{background:#08080C;font-family:Inter,sans-serif;}}
   <div id="legend">
     <div class="leg"><span class="dot" style="background:#FF3B3B"></span>Errors</div>
     <div class="leg"><span class="dot" style="background:#00FF87"></span>Best Moments</div>
+    {"<div class='leg'><span style='font-size:9px;color:#7090FF;font-weight:600;'>🏁 RACING LINE</span></div>" if show_overlay else ""}
   </div>
 </div>
 <div id="tip"></div>
@@ -474,7 +512,29 @@ def main():
     with left:
         vpath = _video_path(sport)
         if os.path.exists(vpath):
-            video_player_with_markers(sport, structured)
+            # Racing line toggle
+            if "racing_line_on" not in st.session_state:
+                st.session_state["racing_line_on"] = False
+
+            overlay_available = bool(_overlay_path(sport))
+            rl_col, info_col = st.columns([1, 3])
+            with rl_col:
+                if overlay_available:
+                    css = "sport-btn-active" if st.session_state["racing_line_on"] else "sport-btn"
+                    st.markdown(f'<div class="{css}">', unsafe_allow_html=True)
+                    if st.button("🏁 Racing Line", key="toggle_rl", use_container_width=True):
+                        st.session_state["racing_line_on"] = not st.session_state["racing_line_on"]
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
+            with info_col:
+                if st.session_state["racing_line_on"] and overlay_available:
+                    st.markdown(
+                        '<span style="font-size:11px;color:#7090FF;">CV overlay · green=fast · red=slow</span>',
+                        unsafe_allow_html=True)
+
+            video_player_with_markers(sport, structured,
+                                      show_overlay=st.session_state.get("racing_line_on", False))
+
         else:
             st.markdown(
                 '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'

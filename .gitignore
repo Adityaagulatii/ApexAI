@@ -2,12 +2,33 @@
 __pycache__/
 *.pyc
 *.pyo
+
+# CV runtime artifacts
 cv/frames/
 cv/video.mp4
 cv/detections.json
 cv/events.json
 cv/output_overlay.mp4
-coaching/output/
+cv/*.mp4
+
+# Keep sample outputs for demo (exclude heavy pipeline artifacts)
+coaching/output/*_report.md
+coaching/output/gemini_*.json
+coaching/output/*_gemini_*.txt
+
+# Large model cache
+.hf_cache/
+
+# Raw video files at root
+*.mp4
+*.mov
+*.avi
+
+# ML model weights
 *.pt
-!kart_clips/
+*.pth
+
+# Static uploads
+static/
+
 .DS_Store

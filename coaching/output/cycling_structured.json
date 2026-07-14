@@ -1,0 +1,76 @@
+{
+  "sport": "cycling",
+  "session_summary": "The rider showed promise in cornering, but struggled with maintaining optimal line and speed through turns.",
+  "errors": [
+    {
+      "timestamp": "0:15",
+      "seconds": 15,
+      "description": "\"Notice how you're maintaining a consistent distance from the inside edge of the turn, which is resulting in a loss of speed and momentum. To correct this, focus on subtly shifting your weight onto the outside footpeg as you approach the apex, allowing your body to naturally lean into the turn and maintain optimal line through the corner.\""
+    },
+    {
+      "timestamp": "0:31",
+      "seconds": 31,
+      "description": "\"Notice how your body is leaning into the turn, but your handlebars are still pointing slightly inward - try to subtly shift your weight onto the pedal side of the bike as you enter the turn, allowing your handlebars to naturally follow the direction of the turn. Focus on maintaining a consistent outside edge contact point with the curb or pavement, and use this as a reference point to guide your body position and steering input.\""
+    },
+    {
+      "timestamp": "0:35",
+      "seconds": 35,
+      "description": "\"Notice how you're consistently staying 66% away from the inside edge, which is not only causing you to miss the apex but also disrupting your momentum. To correct this, focus on finding a more aggressive line that allows you to stay closer to the ideal racing position, aiming for a 40-50% gap between yourself and the inside edge.\""
+    },
+    {
+      "timestamp": "0:36",
+      "seconds": 36,
+      "description": "\"Notice how your body position is leaning into the turn, causing you to lose traction on the left side of the bike. To correct this, focus on maintaining a neutral spine alignment and subtly adjusting your handlebar input to reduce the drift, aiming for a more consistent line through the turn.\""
+    },
+    {
+      "timestamp": "1:10",
+      "seconds": 70,
+      "description": "\"Notice how the driver is approaching the apex of the turn too aggressively, resulting in an early entry point. To improve your own cornering, focus on maintaining a consistent cadence and resisting the urge to accelerate into the turn - aim to hold outside the apex for approximately 1-2 seconds longer than you're currently doing.\""
+    },
+    {
+      "timestamp": "1:10",
+      "seconds": 70,
+      "description": "\"Notice how you're entering the turn with a relatively flat position, which is reducing your aerodynamic efficiency. Focus on shifting your weight onto the left pedal and keeping your handlebars slightly wider than your saddle height to maintain a more optimal cornering position.\""
+    },
+    {
+      "timestamp": "3:12",
+      "seconds": 192,
+      "description": "\"Notice how the car is cutting into the apex too early, resulting in a loss of momentum and speed. To correct this, focus on maintaining a slightly longer outside edge before turning in, aiming to reduce your entry speed by about 1-2 km/h while still keeping the line tight.\""
+    },
+    {
+      "timestamp": "3:12",
+      "seconds": 192,
+      "description": "\"Notice how the bike is entering the turn from a more central position than ideal, which is reducing your ability to take full advantage of the road's geometry. Focus on positioning yourself closer to the right edge of the lane as you approach the turn, allowing for a tighter line and increased speed through the corner.\""
+    },
+    {
+      "timestamp": "3:17",
+      "seconds": 197,
+      "description": "\"Notice how the driver is hitting the apex in just 44% of the corner's radius - this suggests that they may be taking a wider line than necessary, which can lead to a loss of speed and control on exit. To improve this, let's focus on finding a more optimal entry point where you're able to carry more speed through the turn while still maintaining a smooth, arcing line.\""
+    },
+    {
+      "timestamp": "3:17",
+      "seconds": 197,
+      "description": "\"Notice how the bike is entering the turn from a more central position, rather than using the wider outer edge of the lane to gain a geometric advantage. To optimize your cornering speed and control, focus on subtly shifting your weight onto the handlebars as you approach the turn, allowing the front wheel to track closer to the center line.\""
+    }
+  ],
+  "best_moments": [
+    {
+      "timestamp": "0:05",
+      "seconds": 5,
+      "description": "\"Great job on taking the corner with confidence and control - your body positioning is spot on!\""
+    },
+    {
+      "timestamp": "3:16",
+      "seconds": 196,
+      "description": "\"Great job on taking the corner at speed - your body position and weight transfer were spot on, it's clear you're feeling confident in your handling!\""
+    }
+  ],
+  "coaching_analysis": "Notice how you're consistently staying 42% away from the inside edge, which is not only causing you to miss the apex but also disrupting your momentum (0:35).",
+  "scores": {
+    "racing_line_score": 80,
+    "missed_apexes": 1,
+    "early_apexes": 2,
+    "good_apexes": 3
+  },
+  "driver_archetype": "Beginner"
+}

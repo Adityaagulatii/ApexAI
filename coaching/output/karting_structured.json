@@ -1,0 +1,121 @@
+{
+  "session_summary": "The driver demonstrates good commitment to throttle application on corner exits, particularly on left-handers. However, there is a consistent tendency to brake too early and compromise the racing line, especially on the initial right-hand corners, leading to a loss of momentum.",
+  "errors": [
+    {
+      "timestamp": "0:03",
+      "seconds": 3,
+      "description": "Brakes too early for the right-hand sweep, losing entry speed and failing to carry momentum through the corner."
+    },
+    {
+      "timestamp": "0:10",
+      "seconds": 10,
+      "description": "Compromises racing line on the right-hander, turning in too early and then having to adjust, which reduces exit speed."
+    },
+    {
+      "timestamp": "0:20",
+      "seconds": 20,
+      "description": "Suboptimal entry to the right-hand corner, running wide initially before turning in, losing potential speed."
+    },
+    {
+      "timestamp": "0:28",
+      "seconds": 28,
+      "description": "Brakes too deep into the turn, causing a late apex and forcing a slower exit from the corner complex."
+    },
+    {
+      "timestamp": "0:36",
+      "seconds": 36,
+      "description": "Minor oversteer on corner entry, requiring a slight lift off the throttle and scrubbing speed before hitting the apex."
+    },
+    {
+      "timestamp": "0:48",
+      "seconds": 48,
+      "description": "Early braking and poor line selection for the second right-hander, leading to a wide entry and exit."
+    },
+    {
+      "timestamp": "0:58",
+      "seconds": 58,
+      "description": "Repeated error of braking too early for the right-hand corner, losing potential entry speed and momentum."
+    },
+    {
+      "timestamp": "1:09",
+      "seconds": 69,
+      "description": "Missed apex on the initial right-hand turn due to early braking, compromising the arc and exit speed."
+    },
+    {
+      "timestamp": "2:36",
+      "seconds": 156,
+      "description": "Suboptimal line through the right-left complex; brakes early for the right, then compromises the subsequent left."
+    }
+  ],
+  "best_moments": [
+    {
+      "timestamp": "0:08",
+      "seconds": 8,
+      "description": "Good commitment to the inside curb on the left-hand bend, maintaining a tight racing line."
+    },
+    {
+      "timestamp": "0:15",
+      "seconds": 15,
+      "description": "Smooth and consistent arc through the long left-hand sweep, maintaining throttle effectively."
+    },
+    {
+      "timestamp": "0:23",
+      "seconds": 23,
+      "description": "Strong throttle application on the exit of the right-hand corner, utilizing the full track width."
+    },
+    {
+      "timestamp": "0:32",
+      "seconds": 32,
+      "description": "Aggressive and precise use of the curbing on the tight left-hander, showing good car placement."
+    },
+    {
+      "timestamp": "0:43",
+      "seconds": 43,
+      "description": "Executed a clean entry, apex, and exit on the right-hand corner, demonstrating good car control."
+    },
+    {
+      "timestamp": "0:54",
+      "seconds": 54,
+      "description": "Excellent momentum carried through the long sweeping left, showcasing smooth steering and throttle control."
+    },
+    {
+      "timestamp": "1:02",
+      "seconds": 62,
+      "description": "Clean apex hit and strong exit onto the main straight, maximizing speed for the next section."
+    }
+  ],
+  "coaching_analysis": "The driver exhibits a raw ability for kart control but shows inconsistency in applying optimal racing techniques. Your throttle application on corner exits is generally strong, particularly evident from 0:15 to 0:17 and again at 0:23, where you effectively use the track width to maximize speed. This indicates good feel for the kart's power delivery and traction limits.\n\nHowever, a recurring issue is early braking and suboptimal racing lines, most notably in the right-hand corners. For instance, at 0:03, 0:10, and 0:48, you tend to brake too early and/or turn in prematurely, causing you to miss the true apex. This results in either scrubbing speed mid-corner or running wide on exit, compromising your overall momentum. Focus on carrying more speed into the corner by braking later and more decisively, aiming to hit the apex further into the bend. This will allow the kart to rotate more effectively and enable an earlier, smoother throttle application.\n\nSpecifically for the right-hand turn at 0:03, experiment with a later braking point and a slightly wider entry to allow the kart to 'settle' before turning in sharply. This will help you hit the apex properly and maintain a higher minimum speed. For the complex sections, as seen around 0:28 and 2:36, try to link your turns more fluidly. A late brake and sharper turn for the initial right will set up a better angle for the subsequent left, allowing you to carry speed more consistently through the whole sequence rather than braking twice or having to adjust mid-complex.",
+  "scores": {
+    "racing_line": 72,
+    "braking": 65,
+    "throttle": 78,
+    "consistency": 70
+  },
+  "driver_archetype": "Cautious entry, strong exit momentum, needs refinement in braking points and mid-corner precision.",
+  "sport": "karting",
+  "driver_style": {
+    "archetype": "Aggressive Driver",
+    "tags": [
+      {
+        "label": "Strong Throttle",
+        "emoji": "\u26a1\ufe0f",
+        "sentiment": "positive"
+      },
+      {
+        "label": "Inconsistent Braking",
+        "emoji": "\ud83d\udea8",
+        "sentiment": "negative"
+      },
+      {
+        "label": "Tight Cornering",
+        "emoji": "\ud83d\udcaa",
+        "sentiment": "positive"
+      },
+      {
+        "label": "Raw Potential",
+        "emoji": "\ud83d\udcc8",
+        "sentiment": "neutral"
+      }
+    ]
+  }
+}

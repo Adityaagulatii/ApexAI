@@ -1,7 +1,7 @@
 import os
 import json
 import subprocess
-import tempfile
+import sys
 from collections import defaultdict
 
 import cv2
@@ -12,9 +12,8 @@ DETECTIONS_PATH = os.path.join(CV_DIR, "detections.json")
 EVENTS_PATH = os.path.join(CV_DIR, "events.json")
 VIDEO_IN = os.path.join(CV_DIR, "video.mp4")
 VIDEO_OUT = os.path.join(CV_DIR, "output_overlay.mp4")
-VIDEO_TMP = os.path.join(CV_DIR, "output_overlay_tmp.mp4")
 
-TRAIL_LEN = 15
+TRAIL_LEN = 40  # recent frames for speed-colored gradient
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
 BLUE = (255, 100, 0)
@@ -27,41 +26,60 @@ def _centroid(bbox):
     return (int((x1 + x2) / 2), int((y1 + y2) / 2))
 
 
-def render() -> None:
+def _speed_color(speed: float, diag: float) -> tuple:
+    """Green = fast, red = slow — shows deceleration zones on racing line."""
+    ref = diag * 0.008
+    t = min(speed / ref, 1.0) if ref > 0 else 0.0
+    r = int((1.0 - t) * 220)
+    g = int(t * 220 + (1.0 - t) * 60)
+    return (0, g, r)  # BGR
+
+
+def render(sport: str | None = None, video_in: str | None = None,
+           video_out: str | None = None) -> None:
     with open(DETECTIONS_PATH) as f:
         detections = json.load(f)
 
     with open(EVENTS_PATH) as f:
         events_data = json.load(f)
 
-    sport = events_data.get("sport", "karting")
+    if sport is None:
+        sport = events_data.get("sport", "karting")
     events = events_data.get("events", [])
     event_frames = {e["frame"]: e for e in events}
+
+    if video_in is None:
+        video_in = VIDEO_IN
+    if video_out is None:
+        video_out = os.path.join(CV_DIR, f"{sport}_overlay.mp4")
+
+    video_tmp = video_out.replace(".mp4", "_tmp.mp4")
 
     # Index detections by frame
     det_by_frame = {d["frame_idx"]: d for d in detections}
 
-    cap = cv2.VideoCapture(VIDEO_IN)
+    cap = cv2.VideoCapture(video_in)
     if not cap.isOpened():
-        raise RuntimeError(f"Cannot open {VIDEO_IN}")
+        raise RuntimeError(f"Cannot open {video_in}")
 
     fps = cap.get(cv2.CAP_PROP_FPS) or 10
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-    writer = cv2.VideoWriter(VIDEO_TMP, fourcc, fps, (w, h))
-
-    # Track centroid history per track id
-    trail: dict[int, list] = defaultdict(list)
-
-    # Build speed map from detections for display
-    prev_centroids: dict[int, tuple] = {}
     diag = (w**2 + h**2) ** 0.5
 
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    writer = cv2.VideoWriter(video_tmp, fourcc, fps, (w, h))
+
+    # full_trail: cumulative path for the ghost racing line
+    full_trail: dict[int, list] = defaultdict(list)
+    # recent_trail: last TRAIL_LEN points for speed-colored gradient
+    recent_trail: dict[int, list] = defaultdict(list)
+    prev_centroids: dict[int, tuple] = {}
+    speed_history: dict[int, list] = defaultdict(list)
+
     frame_idx = 0
-    print(f"[overlay] Rendering {total_frames} frames...")
+    print(f"[overlay] Rendering {total_frames} frames for {sport}...")
 
     while True:
         ret, frame = cap.read()
@@ -71,28 +89,46 @@ def render() -> None:
         det = det_by_frame.get(frame_idx, {"boxes": []})
         event = event_frames.get(frame_idx)
 
-        # Update trails and compute speed per track
         current_speeds: dict[int, float] = {}
         for box in det["boxes"]:
             tid = box["id"]
             cx, cy = _centroid(box["bbox"])
-            trail[tid].append((cx, cy))
-            if len(trail[tid]) > TRAIL_LEN:
-                trail[tid].pop(0)
 
             if tid in prev_centroids:
                 dx = cx - prev_centroids[tid][0]
                 dy = cy - prev_centroids[tid][1]
-                spd = (dx**2 + dy**2) ** 0.5 / diag
+                spd = (dx**2 + dy**2) ** 0.5
                 current_speeds[tid] = spd
+                speed_history[tid].append(spd)
+            else:
+                speed_history[tid].append(0.0)
+
+            full_trail[tid].append((cx, cy))
+            recent_trail[tid].append((cx, cy, speed_history[tid][-1]))
+            if len(recent_trail[tid]) > TRAIL_LEN:
+                recent_trail[tid].pop(0)
             prev_centroids[tid] = (cx, cy)
 
-        # Draw trails (racing line)
-        for tid, pts in trail.items():
+        # Draw ghost full racing line (semi-transparent dark overlay)
+        overlay = frame.copy()
+        for tid, pts in full_trail.items():
             if len(pts) < 2:
                 continue
             for i in range(1, len(pts)):
-                cv2.line(frame, pts[i - 1], pts[i], BLUE, 2, cv2.LINE_AA)
+                cv2.line(overlay, pts[i - 1], pts[i], (60, 60, 120), 1, cv2.LINE_AA)
+        cv2.addWeighted(overlay, 0.4, frame, 0.6, 0, frame)
+
+        # Draw speed-colored recent trail (green=fast, red=slow)
+        for tid, pts in recent_trail.items():
+            if len(pts) < 2:
+                continue
+            for i in range(1, len(pts)):
+                color = _speed_color(pts[i][2], diag)
+                thickness = 3 if i > len(pts) - 5 else 2
+                cv2.line(frame, pts[i - 1][:2], pts[i][:2], color, thickness, cv2.LINE_AA)
+            # Draw dot at current position
+            if pts:
+                cv2.circle(frame, pts[-1][:2], 5, WHITE, -1, cv2.LINE_AA)
 
         # Draw bounding boxes
         for box in det["boxes"]:
@@ -153,13 +189,15 @@ def render() -> None:
 
     print("[overlay] Re-encoding to H.264 for browser compatibility...")
     subprocess.run([
-        "ffmpeg", "-y", "-i", VIDEO_TMP,
+        "ffmpeg", "-y", "-i", video_tmp,
         "-vcodec", "libx264", "-crf", "23", "-preset", "fast",
-        "-pix_fmt", "yuv420p", VIDEO_OUT,
+        "-pix_fmt", "yuv420p", video_out,
     ], capture_output=True, check=True)
-    os.remove(VIDEO_TMP)
-    print(f"[overlay] Done. Output: {VIDEO_OUT}")
+    os.remove(video_tmp)
+    print(f"[overlay] Done. Output: {video_out}")
 
 
 if __name__ == "__main__":
-    render()
+    sport_arg = sys.argv[1] if len(sys.argv) > 1 else None
+    video_in_arg = sys.argv[2] if len(sys.argv) > 2 else None
+    render(sport=sport_arg, video_in=video_in_arg)

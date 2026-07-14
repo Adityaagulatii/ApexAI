@@ -1,0 +1,14 @@
+{
+  "sport": "biking",
+  "session_summary": "The rider needs to work on synchronizing their throttle and gear shifts to maintain optimal traction and momentum.",
+  "errors": [],
+  "best_moments": [],
+  "coaching_analysis": "At 0:00, the rider's lagging throttle input resulted in a noticeable delay in acceleration.",
+  "scores": {
+    "lean_commitment": 80,
+    "braking": 85,
+    "body_position": 90,
+    "consistency": 95
+  },
+  "driver_archetype": "Aggressive Rider"
+}
