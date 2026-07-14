@@ -545,6 +545,14 @@ def main():
 
     # ── RIGHT: topic tabs + coaching + ask the engineer ──────────────────────
     with right:
+        if not structured:
+            st.markdown(
+                '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'
+                'padding:32px;text-align:center;color:#55555F;font-size:13px;">'
+                'Upload a video and run analysis to see coaching feedback.</div>',
+                unsafe_allow_html=True)
+            return
+
         errs = structured.get("errors", [])
         moms = structured.get("best_moments", [])
 
