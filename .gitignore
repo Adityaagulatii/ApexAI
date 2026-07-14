@@ -9,7 +9,9 @@ cv/video.mp4
 cv/detections.json
 cv/events.json
 cv/output_overlay.mp4
-cv/*.mp4
+cv/*_video.mp4
+cv/*_overlay.mp4
+# keep karting_demo.mp4
 
 # Keep sample outputs for demo (exclude heavy pipeline artifacts)
 coaching/output/*_report.md

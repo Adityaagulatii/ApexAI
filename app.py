@@ -11,7 +11,12 @@ CV_DIR = os.path.join(BASE_DIR, "cv")
 COACHING_OUT = os.path.join(BASE_DIR, "coaching", "output")
 
 def _video_path(sport: str) -> str:
-    return os.path.join(CV_DIR, f"{sport}_video.mp4")
+    full = os.path.join(CV_DIR, f"{sport}_video.mp4")
+    if os.path.exists(full):
+        return full
+    # Demo fallback: use karting_demo.mp4 for all sports
+    demo = os.path.join(CV_DIR, "karting_demo.mp4")
+    return demo if os.path.exists(demo) else full
 
 def _structured_path(sport: str) -> str:
     return os.path.join(COACHING_OUT, f"{sport}_structured.json")
