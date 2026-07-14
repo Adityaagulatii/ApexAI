@@ -506,13 +506,20 @@ def main():
 
     st.markdown('<hr style="border-color:#22222E;margin:10px 0;">', unsafe_allow_html=True)
 
-    left, right = st.columns([11, 9])
+    has_video = os.path.exists(_video_path(sport))
 
-    # ── LEFT: video player with timeline markers ─────────────────────────────
-    with left:
-        vpath = _video_path(sport)
-        if os.path.exists(vpath):
-            # Racing line toggle
+    # Full-width coaching when no video (demo/cloud mode); split layout when video exists
+    if has_video:
+        left, right = st.columns([11, 9])
+        video_col = left
+        coaching_col = right
+    else:
+        video_col = None
+        coaching_col = st.container()
+
+    # ── VIDEO: player with timeline markers ──────────────────────────────────
+    if has_video:
+        with video_col:
             if "racing_line_on" not in st.session_state:
                 st.session_state["racing_line_on"] = False
 
@@ -535,16 +542,8 @@ def main():
             video_player_with_markers(sport, structured,
                                       show_overlay=st.session_state.get("racing_line_on", False))
 
-        else:
-            st.markdown(
-                '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'
-                'height:300px;display:flex;align-items:center;justify-content:center;'
-                'color:#55555F;font-size:13px;">No video uploaded yet</div>',
-                unsafe_allow_html=True)
-
-
-    # ── RIGHT: topic tabs + coaching + ask the engineer ──────────────────────
-    with right:
+    # ── COACHING: topic tabs + ask the engineer ──────────────────────────────
+    with coaching_col:
         if not structured:
             st.markdown(
                 '<div style="background:#16161D;border:1px solid #22222E;border-radius:12px;'
