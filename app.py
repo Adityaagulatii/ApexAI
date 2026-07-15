@@ -395,6 +395,9 @@ def video_player_with_markers(sport: str, structured: dict, show_overlay: bool =
 
     markers_json = _json.dumps(markers)
 
+    # Pick up seek request from timestamp buttons in right panel
+    seek_to = st.session_state.pop("video_seek", 0) or 0
+
     if show_overlay:
         b64 = _load_overlay_b64(sport) or _load_video_b64(sport)
     else:
@@ -441,6 +444,13 @@ const prog=document.getElementById('prog');
 const tip=document.getElementById('tip');
 const markers={markers_json};
 const dur={duration};
+const seekTo={seek_to};
+if(seekTo>0){{
+  vid.addEventListener('loadedmetadata',function(){{
+    vid.currentTime=seekTo;
+    vid.play();
+  }},{{once:true}});
+}}
 
 markers.forEach(function(m){{
   const dot=document.createElement('div');
